@@ -52,6 +52,84 @@ export interface Workflow {
   sourceUri?: string;
 }
 
+export type EdgeLabel = 'true' | 'false' | 'next' | 'then';
+
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  label: EdgeLabel;
+}
+
+export interface WorkflowGraph {
+  edges: WorkflowEdge[];
+  /** Steps nothing points at, other than the first - usually a typo in `next`. */
+  unreachable: string[];
+  /** Targets named by a step that no step declares. */
+  dangling: string[];
+}
+
+/**
+ * The successor graph, derived by the same rules the runner follows.
+ *
+ * It has to be derived rather than drawn by eye, because the rules are not
+ * obvious: a branch goes to one of two arms, an explicit `next` wins, and
+ * otherwise a step falls through to the one after it in declaration order -
+ * *except* once a branch has been taken, where a step with no `next` ends the
+ * run so one arm cannot run into the other. A picture that disagreed with that
+ * would be worse than no picture, so both read from here.
+ */
+export function buildWorkflowGraph(workflow: Workflow): WorkflowGraph {
+  const ids = new Set(workflow.steps.map((step) => step.id));
+  const edges: WorkflowEdge[] = [];
+  const dangling: string[] = [];
+
+  const target = (to: string | undefined): string | undefined => {
+    if (!to) return undefined;
+    if (!ids.has(to)) {
+      if (!dangling.includes(to)) dangling.push(to);
+      return undefined;
+    }
+    return to;
+  };
+
+  // Fall-through only applies before the first branch, mirroring the runner's
+  // `branched` flag, which is set once and never cleared.
+  const firstBranch = workflow.steps.findIndex((step) => step.kind === 'branch');
+
+  workflow.steps.forEach((step, index) => {
+    if (step.kind === 'branch') {
+      const onTrue = target(step.onTrue);
+      const onFalse = target(step.onFalse);
+      if (onTrue) edges.push({ from: step.id, to: onTrue, label: 'true' });
+      if (onFalse) edges.push({ from: step.id, to: onFalse, label: 'false' });
+      return;
+    }
+
+    if (step.next !== undefined) {
+      const next = target(step.next);
+      if (next) edges.push({ from: step.id, to: next, label: 'next' });
+      return;
+    }
+
+    if (firstBranch !== -1 && index > firstBranch) {
+      return; // inside an arm: no `next` means the run ends here
+    }
+
+    const following = workflow.steps[index + 1];
+    if (following) {
+      edges.push({ from: step.id, to: following.id, label: 'then' });
+    }
+  });
+
+  const pointedAt = new Set(edges.map((edge) => edge.to));
+  const unreachable = workflow.steps
+    .slice(1)
+    .filter((step) => !pointedAt.has(step.id))
+    .map((step) => step.id);
+
+  return { edges, unreachable, dangling };
+}
+
 export interface StepResult {
   stepId: string;
   name: string;

@@ -10,6 +10,7 @@ import type { Tool } from '../src/core/protocol';
 import { Recorder } from '../src/core/recording';
 import { TraceStore } from '../src/core/trace';
 import {
+  buildWorkflowGraph,
   resolveTemplates,
   validateWorkflow,
   workflowFromHistory,
@@ -370,6 +371,78 @@ describe('workflowFromHistory', () => {
 });
 
 // ---------------------------------------------------------------------------
+
+describe('workflow graph', () => {
+  const flow = (steps: Workflow['steps']): Workflow => ({ id: 'w', name: 'W', steps });
+
+  it('falls through in declaration order when nothing says otherwise', () => {
+    const graph = buildWorkflowGraph(
+      flow([
+        { id: 'a', kind: 'tool', tool: 't' },
+        { id: 'b', kind: 'tool', tool: 't' },
+        { id: 'c', kind: 'tool', tool: 't' },
+      ]),
+    );
+    assert.deepEqual(graph.edges, [
+      { from: 'a', to: 'b', label: 'then' },
+      { from: 'b', to: 'c', label: 'then' },
+    ]);
+  });
+
+  it('lets an explicit next win over declaration order', () => {
+    const graph = buildWorkflowGraph(
+      flow([
+        { id: 'a', kind: 'tool', tool: 't', next: 'c' },
+        { id: 'b', kind: 'tool', tool: 't' },
+        { id: 'c', kind: 'tool', tool: 't' },
+      ]),
+    );
+    assert.deepEqual(graph.edges[0], { from: 'a', to: 'c', label: 'next' });
+    assert.deepEqual(graph.unreachable, ['b']);
+  });
+
+  it('ends an arm that stops pointing forward, rather than running into the other', () => {
+    // This is the rule the runner applies through its `branched` flag, and the
+    // one a hand-drawn diagram would get wrong.
+    const graph = buildWorkflowGraph(
+      flow([
+        { id: 'check', kind: 'branch', onTrue: 'yes', onFalse: 'no' },
+        { id: 'yes', kind: 'tool', tool: 't' },
+        { id: 'no', kind: 'tool', tool: 't' },
+      ]),
+    );
+    assert.deepEqual(graph.edges, [
+      { from: 'check', to: 'yes', label: 'true' },
+      { from: 'check', to: 'no', label: 'false' },
+    ]);
+    // 'yes' must not fall through into 'no'.
+    assert.equal(graph.edges.some((edge) => edge.from === 'yes'), false);
+  });
+
+  it('still falls through for steps before the first branch', () => {
+    const graph = buildWorkflowGraph(
+      flow([
+        { id: 'setup', kind: 'tool', tool: 't' },
+        { id: 'check', kind: 'branch', onTrue: 'yes' },
+        { id: 'yes', kind: 'tool', tool: 't' },
+      ]),
+    );
+    assert.deepEqual(graph.edges[0], { from: 'setup', to: 'check', label: 'then' });
+  });
+
+  it('reports a target that does not exist instead of drawing it', () => {
+    const graph = buildWorkflowGraph(
+      flow([{ id: 'a', kind: 'tool', tool: 't', next: 'typo' }]),
+    );
+    assert.deepEqual(graph.edges, []);
+    assert.deepEqual(graph.dangling, ['typo']);
+  });
+
+  it('does not call the first step unreachable', () => {
+    const graph = buildWorkflowGraph(flow([{ id: 'only', kind: 'tool', tool: 't' }]));
+    assert.deepEqual(graph.unreachable, []);
+  });
+});
 
 describe('catalog diff', () => {
   it('says nothing the first time it sees a server', () => {

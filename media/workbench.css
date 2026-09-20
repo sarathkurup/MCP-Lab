@@ -1348,3 +1348,74 @@ button {
 .map-swatch-destructive { background: var(--vscode-testing-iconFailed, #f14c4c); }
 .map-swatch-resource { background: var(--vscode-charts-green, #89d185); }
 .map-swatch-prompt { background: var(--vscode-charts-purple, #b180d7); }
+
+/* ---------------------------------------------------------------- flow diagram */
+
+.flow-canvas-wrap {
+  overflow: auto;
+  padding: 4px 0 8px;
+}
+
+.flow-canvas {
+  display: block;
+  font-family: var(--vscode-font-family);
+}
+
+.flow-edge {
+  stroke: var(--vscode-panel-border);
+  stroke-width: 1.4;
+}
+
+.flow-edge-true { stroke: var(--vscode-charts-green, #89d185); }
+.flow-edge-false { stroke: var(--vscode-charts-orange, #d18616); }
+
+.flow-arrow-head {
+  fill: var(--vscode-panel-border);
+}
+
+.flow-edge-label {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 10px;
+}
+
+.flow-edge-label.flow-edge-true { fill: var(--vscode-charts-green, #89d185); stroke: none; }
+.flow-edge-label.flow-edge-false { fill: var(--vscode-charts-orange, #d18616); stroke: none; }
+
+.flow-node-box {
+  fill: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  stroke: var(--vscode-panel-border);
+  stroke-width: 1;
+}
+
+.flow-node-label {
+  fill: var(--vscode-foreground);
+  font-size: 11.5px;
+}
+
+.flow-node-glyph {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.flow-node-sub {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 9.5px;
+}
+
+.flow-node-ok .flow-node-box { stroke: var(--vscode-testing-iconPassed, #2ea043); }
+.flow-node-failed .flow-node-box { stroke: var(--vscode-testing-iconFailed, #f14c4c); }
+.flow-node-skipped .flow-node-box { opacity: 0.6; }
+.flow-node-branch .flow-node-box { stroke: var(--vscode-charts-purple, #b180d7); }
+.flow-node-note .flow-node-box { stroke-dasharray: 3 3; }
+
+.flow-node-orphan .flow-node-box {
+  stroke: var(--vscode-editorWarning-foreground, #cca700);
+  stroke-dasharray: 4 3;
+}
+
+.flow-warnings {
+  display: flex;
+  gap: 8px;
+  padding: 4px 2px 0;
+  flex-wrap: wrap;
+}
