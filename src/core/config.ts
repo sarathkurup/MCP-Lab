@@ -1,3 +1,4 @@
+import type { AuthConfig } from './auth';
 import type { EnvironmentOverride } from './environments';
 
 export type TransportKind = 'stdio' | 'http';
@@ -19,6 +20,9 @@ export interface ServerConfig {
   // http
   url?: string;
   headers?: Record<string, string>;
+
+  /** How to authenticate. The secret itself never lives in this object. */
+  auth?: AuthConfig;
 
   autoConnect?: boolean;
   source?: ConfigSource;

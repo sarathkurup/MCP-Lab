@@ -1,3 +1,4 @@
+import type { AuthConfig } from './auth';
 import type { ServerConfig } from './config';
 import type { Tool } from './protocol';
 
@@ -20,6 +21,7 @@ export interface EnvironmentOverride {
   cwd?: string;
   env?: Record<string, string>;
   headers?: Record<string, string>;
+  auth?: AuthConfig;
 }
 
 export const DEFAULT_ENVIRONMENTS: Environment[] = [
@@ -51,6 +53,7 @@ export function resolveForEnvironment(
     cwd: override.cwd ?? config.cwd,
     env: { ...(config.env ?? {}), ...(override.env ?? {}) },
     headers: { ...(config.headers ?? {}), ...(override.headers ?? {}) },
+    auth: override.auth ?? config.auth,
     environmentId,
   };
 }

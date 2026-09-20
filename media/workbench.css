@@ -957,3 +957,75 @@ button {
 .bar-value.bad {
   color: var(--vscode-editorError-foreground);
 }
+
+/* ---------------------------------------------------------------- security */
+
+.sev-critical {
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+  color: #fff;
+}
+
+.sev-high {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #000;
+}
+
+.sev-medium {
+  background: var(--vscode-charts-blue, #3794ff);
+  color: #fff;
+}
+
+.sev-low {
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+}
+
+.sev-row-critical,
+.sev-row-high {
+  border-left: 2px solid var(--vscode-testing-iconFailed, #f14c4c);
+  padding-left: 8px;
+}
+
+.check-glyph.badge {
+  min-width: 64px;
+}
+
+/* ---------------------------------------------------------------- compare */
+
+.compare-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: 10px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.compare-head {
+  font-weight: 600;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding-bottom: 4px;
+}
+
+.diff-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 12px;
+  padding: 1px 0;
+}
+
+.diff-row.breaking code {
+  color: var(--vscode-editorError-foreground);
+}
+
+.diff-values {
+  opacity: 0.8;
+}

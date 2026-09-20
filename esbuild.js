@@ -31,6 +31,15 @@ const targets = [
     external: ['vscode'],
   },
   {
+    entryPoints: ['src/cli/main.ts'],
+    outfile: 'dist/cli.js',
+    platform: 'node',
+    target: 'node20',
+    format: 'cjs',
+    external: [],
+    banner: { js: '#!/usr/bin/env node' },
+  },
+  {
     entryPoints: ['src/webview/main.ts'],
     outfile: 'dist/webview.js',
     platform: 'browser',

@@ -3,6 +3,7 @@ import { diagnose } from '../../core/doctor';
 import { classifyTool, guard } from '../../core/environments';
 import { ValidationFailure } from '../../core/execution';
 import { lint } from '../../core/linter';
+import { scanSecurity } from '../../core/security';
 import { TestRunner, type SuiteResult, type TestSuite } from '../../core/testing';
 import type { ExecutionView } from '../../shared/viewModels';
 import type { Workbench } from '../Workbench';
@@ -242,6 +243,41 @@ export function registerRpcHandlers(workbench: Workbench): void {
   router.on('runFix', async (params) => {
     const { command, serverId } = params as { command: string; serverId?: string };
     await vscode.commands.executeCommand(command, serverId ? { serverId } : undefined);
+    return true;
+  });
+
+  // -- security --------------------------------------------------------------
+
+  router.on('securityScan', async (params) => {
+    const { serverId } = params as { serverId: string };
+    const connection = workbench.manager.get(serverId);
+    if (!connection) {
+      throw new Error(`Unknown server "${serverId}"`);
+    }
+    return scanSecurity({
+      config: connection.config,
+      tools: connection.catalog.tools,
+      resources: connection.catalog.resources,
+      prompts: connection.catalog.prompts,
+      logs: workbench.logs.query({ serverId }),
+      history: workbench.history.list({ serverId }),
+      hasStoredCredential: !!(await workbench.store.getAuthToken(serverId)),
+      environmentTier: workbench.activeEnvironment?.tier,
+    });
+  });
+
+  // -- comparison ------------------------------------------------------------
+
+  router.on('compare', async (params) => {
+    const { leftId, rightId } = params as { leftId: string; rightId: string };
+    return workbench.compare(leftId, rightId);
+  });
+
+  // -- documentation ---------------------------------------------------------
+
+  router.on('generateDocs', async (params) => {
+    const { serverId } = params as { serverId: string };
+    await vscode.commands.executeCommand('mcpWorkbench.generateDocs', { serverId });
     return true;
   });
 

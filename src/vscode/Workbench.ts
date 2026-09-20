@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../core/ConnectionManager';
 import { describeTarget } from '../core/config';
+import { compareServers, type CompareResult } from '../core/compare';
 import { resolveForEnvironment, type Environment } from '../core/environments';
 import { ExecutionService } from '../core/execution';
 import { HistoryStore, type HistoryEntry } from '../core/history';
@@ -164,6 +165,40 @@ export class Workbench implements vscode.Disposable {
 
     const connected = connections.filter((c) => c.status === 'connected');
     return connected.length === 1 ? connected[0].id : connected[0]?.id;
+  }
+
+  /** Diffs two connected servers, typically the same server in two environments. */
+  async compare(leftId: string, rightId: string): Promise<CompareResult> {
+    const left = this.manager.get(leftId);
+    const right = this.manager.get(rightId);
+    if (!left || !right) {
+      throw new Error('Both servers must be configured before comparing them.');
+    }
+
+    for (const connection of [left, right]) {
+      if (connection.status !== 'connected') {
+        await connection.connect();
+      }
+    }
+
+    return compareServers(
+      {
+        label: left.config.name,
+        serverInfo: left.serverInfo,
+        protocolVersion: left.protocolVersion,
+        tools: left.catalog.tools,
+        resources: left.catalog.resources,
+        prompts: left.catalog.prompts,
+      },
+      {
+        label: right.config.name,
+        serverInfo: right.serverInfo,
+        protocolVersion: right.protocolVersion,
+        tools: right.catalog.tools,
+        resources: right.catalog.resources,
+        prompts: right.catalog.prompts,
+      },
+    );
   }
 
   summarize(serverId: string): ServerSummary | undefined {

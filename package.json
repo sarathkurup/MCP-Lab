@@ -170,6 +170,24 @@
         "title": "Run Tests",
         "category": "MCP",
         "icon": "$(beaker)"
+      },
+      {
+        "command": "mcpWorkbench.generateDocs",
+        "title": "Generate Documentation",
+        "category": "MCP",
+        "icon": "$(book)"
+      },
+      {
+        "command": "mcpWorkbench.securityScan",
+        "title": "Security Scan",
+        "category": "MCP",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "mcpWorkbench.compareServers",
+        "title": "Compare Servers",
+        "category": "MCP",
+        "icon": "$(git-compare)"
       }
     ],
     "menus": {
@@ -255,6 +273,16 @@
           "command": "mcpWorkbench.generateTests",
           "when": "view == mcpWorkbench.servers && viewItem == tool",
           "group": "inline@2"
+        },
+        {
+          "command": "mcpWorkbench.securityScan",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "1_run@5"
+        },
+        {
+          "command": "mcpWorkbench.generateDocs",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "1_run@6"
         }
       ],
       "commandPalette": [
@@ -384,12 +412,16 @@
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.json --outDir out && node --test \"out/tests/*.test.js\"",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cli": "node dist/cli.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
     "esbuild": "^0.23.0",
     "typescript": "^5.5.0"
+  },
+  "bin": {
+    "mcp-workbench": "./dist/cli.js"
   }
 }

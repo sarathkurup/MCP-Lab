@@ -11,6 +11,11 @@ import {
   switchEnvironment,
 } from './analysisCommands';
 import { openJsonDocument, resolveServerId } from './helpers';
+import {
+  compareServersCommand,
+  generateDocumentation,
+  securityScan,
+} from './reportCommands';
 
 /** Commands operate on the whole Workbench rather than a hand-picked slice. */
 type CommandDeps = Workbench;
@@ -56,6 +61,11 @@ export function registerCommands(
   register('mcpWorkbench.analyzeFailure', (...args: never[]) => analyzeFailure(deps, args[0]));
   register('mcpWorkbench.switchEnvironment', () => switchEnvironment(deps));
   register('mcpWorkbench.runTests', () => deps.focus({ view: 'tests' }));
+  register('mcpWorkbench.generateDocs', (...args: never[]) =>
+    generateDocumentation(deps, args[0]),
+  );
+  register('mcpWorkbench.securityScan', (node?: TreeNode) => securityScan(deps, node));
+  register('mcpWorkbench.compareServers', () => compareServersCommand(deps));
 }
 
 // ---------------------------------------------------------------------------
