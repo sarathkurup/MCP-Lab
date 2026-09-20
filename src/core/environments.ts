@@ -2,7 +2,7 @@ import type { AuthConfig } from './auth';
 import type { ServerConfig } from './config';
 import type { Tool } from './protocol';
 
-export type EnvironmentTier = 'dev' | 'qc' | 'prod';
+export type EnvironmentTier = 'dev' | 'qc' | 'uat' | 'prod';
 
 export interface Environment {
   id: string;
@@ -27,6 +27,7 @@ export interface EnvironmentOverride {
 export const DEFAULT_ENVIRONMENTS: Environment[] = [
   { id: 'dev', name: 'DEV', tier: 'dev', color: '#3fb950' },
   { id: 'qc', name: 'QC', tier: 'qc', color: '#d29922' },
+  { id: 'uat', name: 'UAT', tier: 'uat', color: '#db6d28' },
   { id: 'prod', name: 'PROD', tier: 'prod', color: '#f85149' },
 ];
 
@@ -105,6 +106,20 @@ export function guard(risk: ToolRisk, tier: EnvironmentTier | undefined): GuardD
         risk === 'destructive'
           ? 'This is a destructive operation against PRODUCTION.'
           : 'This writes to PRODUCTION.',
+    };
+  }
+
+  // UAT runs against real integrations and real-looking data, so a write is
+  // worth a pause. It is still not production, so it never reaches 'danger'
+  // for an ordinary write and the wording says which tier it is.
+  if (tier === 'uat' && risk !== 'read') {
+    return {
+      confirm: true,
+      severity: risk === 'destructive' ? 'danger' : 'warning',
+      reason:
+        risk === 'destructive'
+          ? 'This is a destructive operation against UAT.'
+          : 'This writes to UAT.',
     };
   }
 

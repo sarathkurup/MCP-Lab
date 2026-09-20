@@ -601,6 +601,11 @@ button {
   color: #fff;
 }
 
+.badge-write {
+  background: var(--vscode-charts-orange, #d18616);
+  color: #000;
+}
+
 .badge-request {
   background: var(--vscode-charts-purple, #b180d7);
   color: #fff;
@@ -746,6 +751,11 @@ button {
 
 .env-select.tier-qc {
   border-color: var(--vscode-editorWarning-foreground);
+}
+
+.env-select.tier-uat {
+  border-color: var(--vscode-charts-orange, #d18616);
+  color: var(--vscode-charts-orange, #d18616);
 }
 
 .toast-host {

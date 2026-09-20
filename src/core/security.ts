@@ -34,7 +34,7 @@ export interface SecurityScanInput {
   logs: LogEntry[];
   history: HistoryEntry[];
   hasStoredCredential: boolean;
-  environmentTier?: 'dev' | 'qc' | 'prod';
+  environmentTier?: 'dev' | 'qc' | 'uat' | 'prod';
 }
 
 export interface SecurityReport {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { ConnectionManager } from '../../core/ConnectionManager';
 import { describeTarget } from '../../core/config';
+import { classifyTool } from '../../core/environments';
 import type { McpConnection } from '../../core/McpConnection';
 import type { Prompt, Resource, ResourceTemplate, Tool } from '../../core/protocol';
 
@@ -230,13 +231,12 @@ function toolItem(node: ToolNode): vscode.TreeItem {
   item.id = `tool:${node.serverId}:${tool.name}`;
 
   const annotations = tool.annotations ?? {};
+  // Same classifier the gate uses, so the icon never disagrees with the
+  // confirmation prompt the user is about to get.
+  const risk = classifyTool(tool);
   item.iconPath = new vscode.ThemeIcon(
-    annotations.destructiveHint
-      ? 'warning'
-      : annotations.readOnlyHint
-        ? 'eye'
-        : 'symbol-method',
-    annotations.destructiveHint ? new vscode.ThemeColor('list.warningForeground') : undefined,
+    risk === 'destructive' ? 'warning' : risk === 'read' ? 'eye' : 'symbol-method',
+    risk === 'destructive' ? new vscode.ThemeColor('list.warningForeground') : undefined,
   );
 
   const required = tool.inputSchema?.required ?? [];

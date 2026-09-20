@@ -422,7 +422,7 @@
         "mcplab.environments": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Environments MCP Lab can switch between. Leave empty to use the built-in DEV / QC / PROD. A server points at a different target per environment via its `environments` block.",
+          "markdownDescription": "Environments MCP Lab can switch between. Leave empty to use the built-in DEV / QC / UAT / PROD. A server points at a different target per environment via its `environments` block.",
           "items": {
             "type": "object",
             "required": [
@@ -442,6 +442,7 @@
                 "enum": [
                   "dev",
                   "qc",
+                  "uat",
                   "prod"
                 ]
               },

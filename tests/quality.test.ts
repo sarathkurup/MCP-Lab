@@ -3,7 +3,12 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { ConnectionManager } from '../src/core/ConnectionManager';
 import { diagnose } from '../src/core/doctor';
-import { classifyTool, guard, resolveForEnvironment } from '../src/core/environments';
+import {
+  DEFAULT_ENVIRONMENTS,
+  classifyTool,
+  guard,
+  resolveForEnvironment,
+} from '../src/core/environments';
 import { ExecutionService } from '../src/core/execution';
 import { HistoryStore } from '../src/core/history';
 import { lint, summarize } from '../src/core/linter';
@@ -410,6 +415,25 @@ describe('environments', () => {
     assert.equal(guard('destructive', 'prod').severity, 'danger');
     assert.equal(guard('write', 'dev').confirm, false);
     assert.equal(guard('destructive', 'dev').confirm, true);
+  });
+
+  it('gates UAT writes, but says UAT rather than production', () => {
+    // UAT sits between QC and PROD: a write stops, a read does not, and the
+    // wording has to name the tier or the prompt teaches people to click through.
+    assert.equal(guard('read', 'uat').confirm, false);
+    assert.equal(guard('write', 'uat').confirm, true);
+    assert.match(guard('write', 'uat').reason ?? '', /UAT/);
+    assert.equal(guard('write', 'uat').severity, 'warning');
+    assert.equal(guard('destructive', 'uat').severity, 'danger');
+    assert.doesNotMatch(guard('write', 'uat').reason ?? '', /PRODUCTION/);
+
+    // QC keeps the looser rule: only destructive calls stop.
+    assert.equal(guard('write', 'qc').confirm, false);
+  });
+
+  it('ships UAT as a built-in environment', () => {
+    const tiers = DEFAULT_ENVIRONMENTS.map((environment) => environment.tier);
+    assert.deepEqual(tiers, ['dev', 'qc', 'uat', 'prod']);
   });
 
   it('merges per-environment overrides without mutating the base config', () => {

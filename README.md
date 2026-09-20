@@ -98,12 +98,15 @@ you configure, and a server to the AI clients you connect.
 
 ### Operate
 
-- **Environments** — DEV/QC/PROD with per-environment targets. Switching
+- **Environments** — DEV/QC/UAT/PROD with per-environment targets: each server
+  can point at a different URL, headers and credential per tier. Switching
   disconnects everything, because the connections now point elsewhere.
-- **One risk gate.** Tools are classified `read` / `write` / `destructive` by
-  annotation first, name second. Production writes are confirmed even when a
-  tool carries no annotations. Workflows, tests and AI clients all pass through
-  it.
+- **One risk gate.** MCP has no HTTP verb, so tools are classified
+  `read` / `write` / `destructive` by annotation first, name second — and that
+  verdict is the badge you see on every tool, marked `write?` when the server
+  annotated nothing and the name was all there was to go on. PROD confirms
+  everything but reads, UAT confirms writes, DEV and QC only stop for
+  destructive calls. Workflows, tests and AI clients all pass through it.
 - **Auth** — bearer, custom header, basic, OAuth client-credentials. Only the
   credential *shape* lives in config; the secret is in `SecretStorage`.
 - **Catalog & search** — every server with owner, version and health derived

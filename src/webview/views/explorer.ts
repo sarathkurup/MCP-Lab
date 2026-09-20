@@ -1,3 +1,4 @@
+import { classifyTool } from '../../core/environments';
 import { normalizeSchema, validateValue } from '../../core/schema';
 import type { Prompt, Resource, ResourceTemplate, Tool } from '../../core/protocol';
 import type { ExecutionView, ServerDetail } from '../../shared/viewModels';
@@ -108,11 +109,9 @@ function renderCatalog(ctx: AppContext, store: ExplorerScratch): HTMLElement {
         'tool',
         tool.name,
         tool.description,
-        tool.annotations?.destructiveHint
-          ? 'destructive'
-          : tool.annotations?.readOnlyHint
-            ? 'read'
-            : 'write',
+        // The same verdict the production gate will reach, rather than a
+        // second, weaker reading of the annotations.
+        classifyTool(tool),
       ),
     )),
   );
@@ -273,14 +272,29 @@ function renderToolDetail(ctx: AppContext, store: ExplorerScratch, tool: Tool): 
   const container = h('div', { class: 'tool-detail' });
 
   const annotations = tool.annotations ?? {};
+  const risk = classifyTool(tool);
+  // MCP has no verb: read / write / destructive is the nearest thing, and it is
+  // what the gate acts on. A trailing ? means the server annotated nothing and
+  // the name was all there was to go on.
+  const declaredRisk =
+    annotations.destructiveHint === true || annotations.readOnlyHint === true;
   container.appendChild(
     h(
       'header',
       { class: 'detail-head' },
       h('h2', null, tool.name),
-      annotations.destructiveHint ? h('span', { class: 'badge badge-destructive' }, 'destructive') : null,
-      annotations.readOnlyHint ? h('span', { class: 'badge badge-read' }, 'read-only') : null,
+      h(
+        'span',
+        {
+          class: `badge badge-${risk}`,
+          title: declaredRisk
+            ? 'Declared by the server through tool annotations'
+            : 'Inferred from the tool name - this server declares no annotations',
+        },
+        declaredRisk ? risk : `${risk}?`,
+      ),
       annotations.idempotentHint ? h('span', { class: 'badge' }, 'idempotent') : null,
+      annotations.openWorldHint ? h('span', { class: 'badge' }, 'open world') : null,
     ),
   );
 

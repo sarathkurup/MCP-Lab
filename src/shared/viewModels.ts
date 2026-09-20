@@ -43,7 +43,7 @@ export interface EnvironmentSummary {
   id: string;
   name: string;
   /** Free-form risk band that drives confirmation prompts. */
-  tier: 'dev' | 'qc' | 'prod';
+  tier: 'dev' | 'qc' | 'uat' | 'prod';
   color: string;
 }
 
