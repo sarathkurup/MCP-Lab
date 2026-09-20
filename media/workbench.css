@@ -1,10 +1,46 @@
-/* Everything is expressed in VS Code theme variables so Workbench follows the
-   user's theme, light or dark, without a second palette. */
+/* Everything is expressed in VS Code theme variables so MCP Lab follows the
+   user's theme - light, dark or high contrast - without a second palette.
+   The tokens below add the one layer a theme does not provide: a consistent
+   rhythm, so spacing and radii are chosen once rather than per rule. */
 
 :root {
-  --gap: 12px;
-  --radius: 4px;
+  /* Spacing scale. Every padding and gap in the app picks from this. */
+  --s1: 4px;
+  --s2: 6px;
+  --s3: 8px;
+  --s4: 12px;
+  --s5: 16px;
+  --s6: 24px;
+
+  --gap: var(--s4);
+
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 8px;
+
+  /* One accent, taken from the theme's focus colour so it is never foreign. */
+  --accent: var(--vscode-focusBorder, #0078d4);
+
+  /* Surfaces, in order of elevation off the editor background. */
+  --surface-1: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --surface-2: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  --border: var(--vscode-panel-border);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.24);
+
+  --t-fast: 90ms ease;
+  --t-base: 150ms ease;
+
   --mono: var(--vscode-editor-font-family, monospace);
+}
+
+/* Motion is decoration here, so it goes away when the OS says it should. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-base: 0ms;
+  }
 }
 
 * {
@@ -1418,4 +1454,248 @@ button {
   gap: 8px;
   padding: 4px 2px 0;
   flex-wrap: wrap;
+}
+
+
+/* ================================================================ refinement
+   Appended last so it raises the baseline set above without rewriting it.
+   Native VS Code surfaces, one accent, and states that are actually visible:
+   hover, active, focus-visible and disabled each look different. */
+
+/* ---------------------------------------------------------------- brand */
+
+.app-header {
+  gap: var(--s3);
+  padding: var(--s3) var(--s5);
+  background: var(--surface-1);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.app-title {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.app-title::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.app-credit {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+}
+
+/* The credit is the first thing to go when the panel is narrow. */
+@media (max-width: 720px) {
+  .app-credit { display: none; }
+}
+
+/* ---------------------------------------------------------------- nav */
+
+.app-nav {
+  gap: var(--s1);
+  padding: 0 var(--s5);
+  background: var(--surface-1);
+  scrollbar-width: thin;
+}
+
+.nav-item {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  opacity: 0.7;
+  transition: opacity var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+  font-size: 12px;
+}
+
+.nav-item:hover { opacity: 1; }
+
+.nav-item.active {
+  opacity: 1;
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.nav-item:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.btn-primary,
+.btn-ghost,
+.nav-item,
+.chip {
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-primary,
+.btn-ghost {
+  border-radius: var(--radius);
+  padding: var(--s2) var(--s4);
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid transparent;
+}
+
+.btn-primary:hover { background: var(--vscode-button-hoverBackground, var(--vscode-button-background)); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+  border-color: var(--vscode-descriptionForeground);
+}
+
+/* A press should feel like one. */
+.btn-primary:active:not(:disabled),
+.btn-ghost:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* One focus treatment for everything that takes focus, so nothing is ever
+   focused invisibly - which is the usual way a keyboard user gets stranded. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input,
+select,
+textarea {
+  border-radius: var(--radius-sm);
+  transition: border-color var(--t-fast);
+}
+
+.control-input:focus,
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+.catalog-row,
+.trace-row {
+  transition: background var(--t-fast), border-color var(--t-fast);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.catalog-section h3 {
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  padding-top: var(--s3);
+  padding-bottom: var(--s1);
+  z-index: 1;
+}
+
+.toolbar {
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.section {
+  margin-bottom: var(--s6);
+}
+
+.section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--vscode-descriptionForeground);
+  margin: 0 0 var(--s3);
+}
+
+.badge {
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- empty states */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s3);
+  padding: var(--s6);
+  text-align: center;
+  height: 100%;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* The markup renders an h2, not a class - target what is actually there. */
+.empty-state h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 44ch;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- scrollbars */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vscode-scrollbarSlider-background, rgba(128, 128, 128, 0.4)) transparent;
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+*::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background, rgba(128, 128, 128, 0.4));
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(128, 128, 128, 0.6));
+  background-clip: content-box;
 }
