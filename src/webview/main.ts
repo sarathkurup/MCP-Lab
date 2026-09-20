@@ -3,6 +3,7 @@ import type { ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
 import type { AppContext, AppState, ViewDefinition } from './app';
 import { clear, h } from './dom';
 import { analyticsView } from './views/analytics';
+import { catalogView } from './views/catalog';
 import { compareView } from './views/compare';
 import { doctorView } from './views/doctor';
 import { explorerView } from './views/explorer';
@@ -11,6 +12,7 @@ import { logsView } from './views/logs';
 import { securityView } from './views/security';
 import { testsView } from './views/tests';
 import { traceView } from './views/trace';
+import { workflowsView } from './views/workflows';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -35,10 +37,12 @@ const VIEWS: ViewDefinition[] = [
   testsView,
   doctorView,
   traceView,
+  workflowsView,
   logsView,
   analyticsView,
   securityView,
   compareView,
+  catalogView,
 ];
 
 const persisted = (vscode.getState() ?? {}) as Partial<AppState>;

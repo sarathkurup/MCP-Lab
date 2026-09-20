@@ -1,4 +1,5 @@
 import type { AuthConfig } from './auth';
+import type { ServerMetadata } from './catalog';
 import type { EnvironmentOverride } from './environments';
 
 export type TransportKind = 'stdio' | 'http';
@@ -23,6 +24,9 @@ export interface ServerConfig {
 
   /** How to authenticate. The secret itself never lives in this object. */
   auth?: AuthConfig;
+
+  /** Ownership and links, shown in the catalog. */
+  metadata?: ServerMetadata;
 
   autoConnect?: boolean;
   source?: ConfigSource;

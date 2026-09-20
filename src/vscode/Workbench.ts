@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../core/ConnectionManager';
 import { describeTarget } from '../core/config';
+import { buildCatalogEntry, searchCatalog, type CatalogEntry, type SearchHit } from '../core/catalog';
 import { compareServers, type CompareResult } from '../core/compare';
 import { resolveForEnvironment, type Environment } from '../core/environments';
 import { ExecutionService } from '../core/execution';
 import { HistoryStore, type HistoryEntry } from '../core/history';
 import { LogStore } from '../core/logging';
+import { Recorder } from '../core/recording';
 import type { TestCase, TestSuite } from '../core/testing';
 import { TraceStore } from '../core/trace';
 import type { ServerDetail, ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
@@ -14,6 +16,7 @@ import { LintDiagnostics } from './services/LintDiagnostics';
 import { McpTestController } from './services/McpTestController';
 import { OutputChannels } from './services/OutputChannels';
 import { TestRepository } from './services/TestRepository';
+import { WorkflowRepository } from './services/WorkflowRepository';
 import { EnvironmentStore } from './storage/EnvironmentStore';
 import { ServerStore } from './storage/ServerStore';
 import { ServersTreeProvider } from './ui/ServersTreeProvider';
@@ -39,6 +42,8 @@ export class Workbench implements vscode.Disposable {
   readonly tests: TestRepository;
   readonly lintDiagnostics = new LintDiagnostics();
   readonly ai = new AiService();
+  readonly workflows = new WorkflowRepository();
+  readonly recorder: Recorder;
   private testController?: McpTestController;
 
   private readonly disposables: vscode.Disposable[] = [];
@@ -62,6 +67,7 @@ export class Workbench implements vscode.Disposable {
     });
 
     this.execution = new ExecutionService(this.manager, this.history);
+    this.recorder = new Recorder(this.execution);
     this.channels = new OutputChannels(this.logs, this.trace);
     this.tree = new ServersTreeProvider(this.manager);
     this.panel = WorkbenchPanel.register(context);
@@ -82,6 +88,10 @@ export class Workbench implements vscode.Disposable {
       this.store.onDidChange(() => void this.reloadServers()),
       this.environments.onDidChange(() => void this.reloadServers()),
       this.tests.onDidChange(() => this.panel.emit('tests-changed')),
+      this.workflows.onDidChange(() => this.panel.emit('workflows-changed')),
+      asDisposable(
+        this.recorder.onDidChange((entries) => this.panel.emit('recording-changed', entries)),
+      ),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (
           event.affectsConfiguration('mcpWorkbench.servers') ||
@@ -136,6 +146,7 @@ export class Workbench implements vscode.Disposable {
 
   /** Attaches the native Test Explorer once the workspace has been scanned. */
   async startTesting(): Promise<void> {
+    await this.workflows.discover();
     await this.tests.discover();
     this.testController = new McpTestController(this);
     this.testController.rebuild();
@@ -165,6 +176,50 @@ export class Workbench implements vscode.Disposable {
 
     const connected = connections.filter((c) => c.status === 'connected');
     return connected.length === 1 ? connected[0].id : connected[0]?.id;
+  }
+
+  /** Maps a server name (as a workflow or test writes it) to a connected id. */
+  resolveServerByName(name: string | undefined): string | undefined {
+    if (!name) {
+      return undefined;
+    }
+    const match = this.manager
+      .list()
+      .find((c) => c.id === name || c.config.name.toLowerCase() === name.toLowerCase());
+    return match?.id;
+  }
+
+  /** The catalog view: one card per server, with health derived from usage. */
+  catalog(): CatalogEntry[] {
+    return this.manager.list().map((connection) =>
+      buildCatalogEntry({
+        config: connection.config,
+        status: connection.status,
+        lastError: connection.lastError,
+        serverVersion: connection.serverInfo?.version,
+        protocolVersion: connection.protocolVersion,
+        target: describeTarget(connection.config),
+        tools: connection.catalog.tools,
+        resources: connection.catalog.resources,
+        prompts: connection.catalog.prompts,
+        stats: this.history.stats(connection.id),
+      }),
+    );
+  }
+
+  /** Searches every connected server at once. */
+  search(query: string): SearchHit[] {
+    return searchCatalog(
+      this.manager.list().map((connection) => ({
+        serverId: connection.id,
+        serverName: connection.config.name,
+        metadata: connection.config.metadata,
+        tools: connection.catalog.tools,
+        resources: connection.catalog.resources,
+        prompts: connection.catalog.prompts,
+      })),
+      query,
+    );
   }
 
   /** Diffs two connected servers, typically the same server in two environments. */
@@ -270,6 +325,8 @@ export class Workbench implements vscode.Disposable {
     this.store.dispose();
     this.environments.dispose();
     this.tests.dispose();
+    this.workflows.dispose();
+    this.recorder.dispose();
     this.lintDiagnostics.dispose();
     this.panel.dispose();
     void this.manager.disposeAll();

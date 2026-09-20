@@ -5,6 +5,7 @@ import { ValidationFailure } from '../../core/execution';
 import { lint } from '../../core/linter';
 import { scanSecurity } from '../../core/security';
 import { TestRunner, type SuiteResult, type TestSuite } from '../../core/testing';
+import { validateWorkflow, WorkflowRunner } from '../../core/workflows';
 import type { ExecutionView } from '../../shared/viewModels';
 import type { Workbench } from '../Workbench';
 
@@ -278,6 +279,128 @@ export function registerRpcHandlers(workbench: Workbench): void {
   router.on('generateDocs', async (params) => {
     const { serverId } = params as { serverId: string };
     await vscode.commands.executeCommand('mcpWorkbench.generateDocs', { serverId });
+    return true;
+  });
+
+  // -- catalog & search ------------------------------------------------------
+
+  router.on('catalog', () => workbench.catalog());
+
+  router.on('search', (params) => {
+    const { query } = params as { query: string };
+    return workbench.search(query);
+  });
+
+  router.on('openExternal', async (params) => {
+    const { url } = params as { url: string };
+    // Only ever opens a link the user put in their own server configuration.
+    await vscode.env.openExternal(vscode.Uri.parse(url));
+    return true;
+  });
+
+  // -- workflows -------------------------------------------------------------
+
+  router.on('workflows', async () => {
+    await workbench.workflows.discover();
+    return workbench.workflows.list();
+  });
+
+  router.on('runWorkflow', async (params) => {
+    const { workflowId, serverId } = params as { workflowId: string; serverId?: string };
+    const workflow = workbench.workflows.get(workflowId);
+    if (!workflow) {
+      throw new Error(`Unknown workflow "${workflowId}"`);
+    }
+
+    const problems = validateWorkflow(workflow);
+    if (problems.length > 0) {
+      throw new Error(`Workflow is not runnable:\n${problems.map((p) => `  • ${p}`).join('\n')}`);
+    }
+
+    // Every tool a workflow touches goes through the same risk gate as a manual call.
+    const fallbackId = serverId ?? workbench.manager.list().find((c) => c.status === 'connected')?.id;
+    for (const step of workflow.steps) {
+      if (step.kind !== 'tool' || !step.tool) {
+        continue;
+      }
+      const target = workbench.resolveServerByName(step.server ?? workflow.server) ?? fallbackId;
+      if (target && !(await confirmIfRisky(workbench, target, step.tool))) {
+        throw new Error('Cancelled.');
+      }
+    }
+
+    const runner = new WorkflowRunner(workbench.execution, (name) =>
+      workbench.resolveServerByName(name) ?? fallbackId,
+    );
+    const subscription = runner.onDidCompleteStep((step) =>
+      workbench.panel.emit('workflow-step', step),
+    );
+    try {
+      return await runner.run(workflow, { environment: workbench.activeEnvironment?.name });
+    } finally {
+      subscription.dispose();
+    }
+  });
+
+  // -- recording -------------------------------------------------------------
+
+  router.on('recordingState', () => ({
+    recording: workbench.recorder.isRecording,
+    entries: workbench.recorder.recorded,
+  }));
+
+  router.on('startRecording', (params) => {
+    const { serverId } = (params ?? {}) as { serverId?: string };
+    workbench.recorder.start(serverId ? { serverId } : undefined);
+    return true;
+  });
+
+  router.on('stopRecording', () => {
+    workbench.recorder.stop();
+    return workbench.recorder.recorded;
+  });
+
+  router.on('dropRecorded', (params) => {
+    const { id } = params as { id: string };
+    workbench.recorder.remove(id);
+    return workbench.recorder.recorded;
+  });
+
+  router.on('replayRecording', async () => {
+    const replayed = await workbench.recorder.replayAll();
+    return replayed.length;
+  });
+
+  router.on('saveRecordingAsWorkflow', async () => {
+    const name = await vscode.window.showInputBox({
+      title: 'Save recording as workflow',
+      prompt: 'Workflow name',
+      value: 'Recorded workflow',
+    });
+    if (!name) {
+      return false;
+    }
+    const workflow = workbench.recorder.toWorkflow(name);
+    const uri = await workbench.workflows.save(workflow);
+    const open = await vscode.window.showInformationMessage(
+      `Saved ${vscode.workspace.asRelativePath(uri)} with ${workflow.steps.length} step(s).`,
+      'Open',
+    );
+    if (open === 'Open') {
+      await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri));
+    }
+    return true;
+  });
+
+  router.on('saveRecordingAsTests', async () => {
+    const tests = workbench.recorder.toTests();
+    if (tests.length === 0) {
+      throw new Error('Nothing was recorded.');
+    }
+    const uri = await workbench.tests.append('recorded', tests);
+    void vscode.window.showInformationMessage(
+      `Saved ${tests.length} test(s) to ${vscode.workspace.asRelativePath(uri)}.`,
+    );
     return true;
   });
 

@@ -1029,3 +1029,152 @@ button {
 .diff-values {
   opacity: 0.8;
 }
+
+/* ---------------------------------------------------------------- workflows */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flow-node {
+  border: 1px solid var(--vscode-panel-border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.flow-idle {
+  opacity: 0.85;
+}
+
+.flow-ok {
+  border-left-color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.flow-fail {
+  border-left-color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.flow-skip {
+  border-left-color: var(--vscode-panel-border);
+  opacity: 0.6;
+}
+
+.flow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flow-glyph {
+  min-width: 2.5em;
+  font-weight: 700;
+}
+
+.flow-name {
+  flex: 1 1 auto;
+}
+
+.flow-arrow {
+  text-align: center;
+  opacity: 0.45;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.recorder .catalog-search {
+  position: static;
+}
+
+/* ---------------------------------------------------------------- catalog */
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.catalog-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-top-width: 3px;
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.health-healthy {
+  border-top-color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.health-degraded {
+  border-top-color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.health-unreachable {
+  border-top-color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.health-unknown {
+  border-top-color: var(--vscode-panel-border);
+}
+
+.health-badge-healthy {
+  background: var(--vscode-testing-iconPassed, #2ea043);
+  color: #fff;
+}
+
+.health-badge-degraded {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #000;
+}
+
+.health-badge-unreachable {
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+  color: #fff;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.card-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.card-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-stat-value {
+  font-weight: 600;
+  font-family: var(--mono);
+}
+
+.card-stat-label {
+  font-size: 10px;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.card-risk,
+.card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
