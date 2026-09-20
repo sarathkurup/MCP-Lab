@@ -107,8 +107,15 @@ you configure, and a server to the AI clients you connect.
   annotated nothing and the name was all there was to go on. PROD confirms
   everything but reads, UAT confirms writes, DEV and QC only stop for
   destructive calls. Workflows, tests and AI clients all pass through it.
-- **Auth** — bearer, custom header, basic, OAuth client-credentials. Only the
-  credential *shape* lives in config; the secret is in `SecretStorage`.
+- **Auth** — bearer, custom header, basic, OAuth client-credentials, and
+  **interactive OAuth 2.1** (authorization code + PKCE) for the servers an
+  organisation actually runs. A 401 names its protected-resource metadata
+  (RFC 9728), that names an authorization server, its metadata (RFC 8414) names
+  the endpoints, and MCP Lab registers itself on the spot (RFC 7591) if it has
+  no client id yet. Only the credential *shape* lives in config; tokens live in
+  `SecretStorage`, which is the OS keychain — so a sign-in survives closing
+  VS Code and rebooting, and the access token is refreshed silently from the
+  stored refresh token without asking again.
 - **Catalog & search** — every server with owner, version and health derived
   from real usage, plus ranked search across all of them.
 - **Analytics** — call counts, failure rates, p50/p95, by target.
@@ -246,9 +253,11 @@ Worth recording, because they are the kind of bug that survives a read-through:
 
 Phases 0–32 of the project plan are implemented, with two documented limits:
 
-- **Interactive OAuth** (authorization-code + PKCE) is not implemented.
-  Client-credentials is. Interactive flows need a loopback redirect and a URI
-  handler; bearer, header and basic auth cover the rest.
+- **Interactive OAuth is implemented but not verified against a live
+  provider.** The protocol half — PKCE, discovery, registration, exchange and
+  refresh — is covered by 23 tests against a stub. The browser round trip
+  itself has only been exercised by hand, because it needs a real
+  authorization server and a real consent screen.
 - **The VS Code UI layer is not covered by automated tests.** The core is, and
   the CLI is tested end to end as a real process. Testing the extension host
   itself needs `@vscode/test-electron`, which downloads a VS Code build.

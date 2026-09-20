@@ -7,7 +7,14 @@
  * settings file, a config object, or a log line.
  */
 
-export type AuthKind = 'none' | 'bearer' | 'header' | 'basic' | 'oauth-client-credentials';
+export type AuthKind =
+  | 'none'
+  | 'bearer'
+  | 'header'
+  | 'basic'
+  | 'oauth-client-credentials'
+  /** Interactive authorization-code + PKCE; the host holds and refreshes the token. */
+  | 'oauth';
 
 export interface AuthConfig {
   kind: AuthKind;
@@ -59,6 +66,10 @@ export class AuthProvider {
       case 'none':
         return base;
 
+      // `oauth` arrives here already exchanged: the host resolves the access
+      // token, refreshing it first when it is close to expiry, so from this side
+      // it is indistinguishable from a bearer token.
+      case 'oauth':
       case 'bearer': {
         const secret = await this.context.resolveSecret();
         return secret ? { ...base, authorization: `Bearer ${secret}` } : base;

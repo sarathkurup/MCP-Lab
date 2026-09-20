@@ -28,6 +28,15 @@ export interface Transport {
 }
 
 export class TransportError extends Error {
+  /** HTTP status, when the failure came from an HTTP response. */
+  status?: number;
+  /**
+   * The raw `WWW-Authenticate` header from a 401. Kept because it is the only
+   * place a server says where its authorization metadata lives, and throwing it
+   * away would force the OAuth flow to guess.
+   */
+  wwwAuthenticate?: string;
+
   constructor(message: string, override readonly cause?: unknown) {
     super(message);
     this.name = 'TransportError';

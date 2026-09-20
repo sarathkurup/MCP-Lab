@@ -96,9 +96,12 @@ export class StreamableHttpTransport implements Transport {
 
     if (!response.ok) {
       const body = await safeText(response);
-      throw new TransportError(
+      const error = new TransportError(
         `HTTP ${response.status} ${response.statusText}${body ? ': ' + truncate(body) : ''}`,
       );
+      error.status = response.status;
+      error.wwwAuthenticate = response.headers.get('www-authenticate') ?? undefined;
+      throw error;
     }
 
     if (response.status === 202 || !response.body) {

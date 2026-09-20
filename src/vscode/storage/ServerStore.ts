@@ -14,8 +14,17 @@ export class ServerStore {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChange = this.changed.event;
   private readonly authProviders = new Map<string, AuthProvider>();
+  /**
+   * Set once the extension has an OAuth service. It is injected rather than
+   * constructed here because it owns a URI handler, which belongs to activation.
+   */
+  private oauth?: { accessToken(serverId: string): Promise<string | undefined> };
 
   constructor(private readonly context: vscode.ExtensionContext) {}
+
+  useOAuth(service: { accessToken(serverId: string): Promise<string | undefined> }): void {
+    this.oauth = service;
+  }
 
   /** UI-added servers plus settings-declared ones, settings losing on id clash. */
   list(): ServerConfig[] {
@@ -119,7 +128,12 @@ export class ServerStore {
     let provider = this.authProviders.get(cacheKey);
     if (!provider) {
       provider = new AuthProvider(auth, {
-        resolveSecret: () => this.getAuthToken(config.id),
+        // An interactive grant resolves through the OAuth service, which knows
+        // how to refresh it; every other kind is a secret the user pasted.
+        resolveSecret: () =>
+          auth.kind === 'oauth' && this.oauth
+            ? this.oauth.accessToken(config.id)
+            : this.getAuthToken(config.id),
       });
       // Only one provider per server: a changed auth shape replaces the old one.
       for (const key of [...this.authProviders.keys()]) {

@@ -140,6 +140,16 @@
         "category": "MCP"
       },
       {
+        "command": "mcplab.signIn",
+        "title": "Sign In (OAuth)",
+        "category": "MCP"
+      },
+      {
+        "command": "mcplab.signOut",
+        "title": "Sign Out (OAuth)",
+        "category": "MCP"
+      },
+      {
         "command": "mcplab.showCapabilities",
         "title": "Show Server Capabilities",
         "category": "MCP",

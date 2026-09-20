@@ -52,6 +52,8 @@ export function registerCommands(
   register('mcplab.openItem', (node?: TreeNode) => openItem(deps, node));
   register('mcplab.setAuthToken', (node?: TreeNode) => setAuthToken(deps, node));
   register('mcplab.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
+  register('mcplab.signIn', (node?: TreeNode) => signIn(deps, node));
+  register('mcplab.signOut', (node?: TreeNode) => signOut(deps, node));
   register('mcplab.showCapabilities', (node?: TreeNode) => showCapabilities(deps, node));
   register('mcplab.copyDefinition', (node?: TreeNode) => copyDefinition(deps, node));
   register('mcplab.diagnose', (node?: TreeNode) => diagnoseServer(deps, node));
@@ -73,6 +75,48 @@ export function registerCommands(
   register('mcplab.startBridge', () => startBridge(deps));
   register('mcplab.stopBridge', () => stopBridge(deps));
   register('mcplab.copyBridgeConfig', () => copyBridgeConfig(deps));
+}
+
+// ---------------------------------------------------------------------------
+// OAuth
+// ---------------------------------------------------------------------------
+
+/**
+ * Interactive sign-in. The server has to be marked `auth.kind = 'oauth'` for the
+ * token to actually be used, so this sets that too rather than leaving the user
+ * with a token the transport ignores.
+ */
+async function signIn(deps: CommandDeps, node?: TreeNode): Promise<void> {
+  const serverId = await resolveServerId(deps, node, 'Sign in to which server?');
+  if (!serverId) return;
+
+  const config = deps.store.get(serverId);
+  if (!config) return;
+  if (config.transport !== 'http') {
+    void vscode.window.showWarningMessage('OAuth applies to HTTP servers; this one is stdio.');
+    return;
+  }
+
+  await deps.oauth.signIn(config);
+
+  if (config.auth?.kind !== 'oauth' && config.source === 'user') {
+    await deps.store.update({ ...config, auth: { ...(config.auth ?? {}), kind: 'oauth' } });
+  }
+  deps.store.invalidateAuth(serverId);
+  void vscode.window.showInformationMessage(`Signed in to ${config.name}.`);
+  await deps.reloadServers();
+}
+
+async function signOut(deps: CommandDeps, node?: TreeNode): Promise<void> {
+  const serverId = await resolveServerId(deps, node, 'Sign out of which server?');
+  if (!serverId) return;
+
+  const config = deps.store.get(serverId);
+  await deps.oauth.signOut(serverId);
+  deps.store.invalidateAuth(serverId);
+  void vscode.window.showInformationMessage(
+    config ? `Signed out of ${config.name}.` : 'Signed out.',
+  );
 }
 
 // ---------------------------------------------------------------------------

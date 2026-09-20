@@ -14,6 +14,7 @@ import type { ServerDetail, ServerSummary, WorkbenchSnapshot } from '../shared/v
 import { AiService } from './services/AiService';
 import { LintDiagnostics } from './services/LintDiagnostics';
 import { McpTestController } from './services/McpTestController';
+import { OAuthService } from './services/OAuthService';
 import { OutputChannels } from './services/OutputChannels';
 import { TestRepository } from './services/TestRepository';
 import { WorkbenchMcpServer } from './services/WorkbenchMcpServer';
@@ -46,6 +47,7 @@ export class Workbench implements vscode.Disposable {
   readonly workflows = new WorkflowRepository();
   readonly bridge: WorkbenchMcpServer;
   readonly recorder: Recorder;
+  readonly oauth: OAuthService;
   private testController?: McpTestController;
 
   private readonly disposables: vscode.Disposable[] = [];
@@ -54,6 +56,11 @@ export class Workbench implements vscode.Disposable {
     this.trace = new TraceStore(config().traceMaxEntries);
     this.logs.setRedaction(config().redactSecrets);
     this.store = new ServerStore(context);
+    this.oauth = new OAuthService(context, this.logs);
+    // The store resolves an interactive grant through the service rather than
+    // from SecretStorage directly, because that token has to be refreshed.
+    this.store.useOAuth(this.oauth);
+    this.disposables.push(this.oauth);
     this.environments = new EnvironmentStore(context);
     this.tests = new TestRepository();
 
