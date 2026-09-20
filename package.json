@@ -10,7 +10,7 @@
       "name": "Sarath Kumar"
     }
   ],
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "sarathkumar",
   "license": "MIT",
   "repository": {
@@ -32,6 +32,10 @@
   ],
   "keywords": [
     "mcp",
+    "mcp lab",
+    "lab",
+    "mcp testing",
+    "mcp debugging",
     "mcp inspector",
     "mcp client",
     "mcp server",
