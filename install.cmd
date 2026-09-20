@@ -118,11 +118,10 @@ if not exist "dist\extension.js" (
 
 rem --- package ----------------------------------------------------------------
 rem  --no-dependencies:          everything is bundled by esbuild already
-rem  --allow-missing-repository: this is a local build, not a marketplace one
 echo Packaging %VSIX% ...
 if exist "%VSIX%" del /q "%VSIX%"
 
-call npx --yes @vscode/vsce package --no-dependencies --allow-missing-repository -o "%VSIX%"
+call npx --yes @vscode/vsce package --no-dependencies -o "%VSIX%"
 if errorlevel 1 (
     echo [ERROR] Packaging failed.
     echo         If this is a network problem, install vsce once with:

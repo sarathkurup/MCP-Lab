@@ -12,6 +12,9 @@ tsconfig.json
 # 128x128 PNG if you want one on the extension.
 logo*.png
 
+# Retina source for the marketplace icon; nothing references it at runtime.
+media/icon@2x.png
+
 # Development-only helpers.
 install.cmd
 package-lock.json
