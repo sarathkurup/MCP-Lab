@@ -21,7 +21,7 @@ export function registerChatParticipant(
   }
 
   const participant = vscode.chat.createChatParticipant(
-    'mcpilot.mcp',
+    'mcplab.mcp',
     async (request, _chatContext, stream, token) => {
       switch (request.command) {
         case 'find':
@@ -152,7 +152,7 @@ function handleTests(
 
   stream.markdown(`I can generate a schema-derived suite for \`${found.tool.name}\`.\n\n`);
   stream.button({
-    command: 'mcpilot.generateTests',
+    command: 'mcplab.generateTests',
     title: `Generate tests for ${found.tool.name}`,
     arguments: [found.serverId, found.tool.name],
   });
@@ -191,8 +191,8 @@ async function handleWhy(
   }
 
   stream.button({
-    command: 'mcpilot.openItem',
-    title: 'Open in MCPilot',
+    command: 'mcplab.openItem',
+    title: 'Open in MCP Lab',
     arguments: [{ kind: 'tool', serverId: failure.serverId, tool: tool ?? { name: failure.name } }],
   });
 }

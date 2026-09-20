@@ -27,7 +27,7 @@ function run(args: string[], cwd = DEMO): { status: number; stdout: string; stde
   };
 }
 
-describe('mcpilot CLI', () => {
+describe('mcplab CLI', () => {
   it('is built before these tests run', () => {
     assert.ok(existsSync(CLI), `${CLI} is missing; run the TypeScript build first`);
     assert.ok(existsSync(path.join(DEMO, 'mcp.config.json')), 'demo environment is present');
@@ -36,7 +36,7 @@ describe('mcpilot CLI', () => {
   it('prints usage and exits 2 with no command', () => {
     const result = run([]);
     assert.equal(result.status, 2);
-    assert.match(result.stdout, /mcpilot <command>/);
+    assert.match(result.stdout, /mcplab <command>/);
   });
 
   it('exits 2 when the config does not exist', () => {

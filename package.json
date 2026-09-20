@@ -1,9 +1,17 @@
 {
-  "name": "mcpilot",
-  "displayName": "MCPilot — MCP Inspector & Testing",
+  "name": "mcplab",
+  "displayName": "MCP Lab — MCP Inspector & Testing",
   "description": "MCP Inspector and testing for VS Code. Explore, execute, test and debug Model Context Protocol servers: schema-driven forms, protocol tracing, automated tests, diagnostics and security scanning.",
+  "author": {
+    "name": "Sarath Kumar"
+  },
+  "contributors": [
+    {
+      "name": "Sarath Kumar"
+    }
+  ],
   "version": "0.1.0",
-  "publisher": "mcpilot",
+  "publisher": "sarathkumar",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0",
@@ -39,16 +47,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "mcpilot",
-          "title": "MCPilot",
+          "id": "mcplab",
+          "title": "MCP Lab",
           "icon": "media/activity-bar.svg"
         }
       ]
     },
     "views": {
-      "mcpilot": [
+      "mcplab": [
         {
-          "id": "mcpilot.servers",
+          "id": "mcplab.servers",
           "name": "MCP Servers",
           "icon": "media/activity-bar.svg"
         }
@@ -56,176 +64,176 @@
     },
     "viewsWelcome": [
       {
-        "view": "mcpilot.servers",
-        "contents": "No MCP servers configured yet.\n[Add Server](command:mcpilot.addServer)\nMCPilot connects to local (stdio) and remote (streamable HTTP) MCP servers."
+        "view": "mcplab.servers",
+        "contents": "No MCP servers configured yet.\n[Add Server](command:mcplab.addServer)\nMCP Lab connects to local (stdio) and remote (streamable HTTP) MCP servers."
       }
     ],
     "commands": [
       {
-        "command": "mcpilot.open",
-        "title": "Open MCPilot",
+        "command": "mcplab.open",
+        "title": "Open MCP Lab",
         "category": "MCP",
         "icon": "$(preview)"
       },
       {
-        "command": "mcpilot.openItem",
-        "title": "Open in MCPilot",
+        "command": "mcplab.openItem",
+        "title": "Open in MCP Lab",
         "category": "MCP"
       },
       {
-        "command": "mcpilot.addServer",
+        "command": "mcplab.addServer",
         "title": "Add Server",
         "category": "MCP",
         "icon": "$(add)"
       },
       {
-        "command": "mcpilot.removeServer",
+        "command": "mcplab.removeServer",
         "title": "Remove Server",
         "category": "MCP",
         "icon": "$(trash)"
       },
       {
-        "command": "mcpilot.connect",
+        "command": "mcplab.connect",
         "title": "Connect",
         "category": "MCP",
         "icon": "$(plug)"
       },
       {
-        "command": "mcpilot.disconnect",
+        "command": "mcplab.disconnect",
         "title": "Disconnect",
         "category": "MCP",
         "icon": "$(debug-disconnect)"
       },
       {
-        "command": "mcpilot.reconnect",
+        "command": "mcplab.reconnect",
         "title": "Reconnect",
         "category": "MCP",
         "icon": "$(debug-restart)"
       },
       {
-        "command": "mcpilot.refresh",
+        "command": "mcplab.refresh",
         "title": "Refresh",
         "category": "MCP",
         "icon": "$(refresh)"
       },
       {
-        "command": "mcpilot.showLogs",
+        "command": "mcplab.showLogs",
         "title": "Show Logs",
         "category": "MCP",
         "icon": "$(output)"
       },
       {
-        "command": "mcpilot.showTrace",
+        "command": "mcplab.showTrace",
         "title": "Show Protocol Trace",
         "category": "MCP",
         "icon": "$(search)"
       },
       {
-        "command": "mcpilot.setAuthToken",
+        "command": "mcplab.setAuthToken",
         "title": "Set Authentication Token",
         "category": "MCP",
         "icon": "$(key)"
       },
       {
-        "command": "mcpilot.clearAuthToken",
+        "command": "mcplab.clearAuthToken",
         "title": "Clear Authentication Token",
         "category": "MCP"
       },
       {
-        "command": "mcpilot.showCapabilities",
+        "command": "mcplab.showCapabilities",
         "title": "Show Server Capabilities",
         "category": "MCP",
         "icon": "$(info)"
       },
       {
-        "command": "mcpilot.copyDefinition",
+        "command": "mcplab.copyDefinition",
         "title": "Copy Definition as JSON",
         "category": "MCP",
         "icon": "$(copy)"
       },
       {
-        "command": "mcpilot.diagnose",
+        "command": "mcplab.diagnose",
         "title": "Diagnose Server",
         "category": "MCP",
         "icon": "$(pulse)"
       },
       {
-        "command": "mcpilot.lint",
+        "command": "mcplab.lint",
         "title": "Lint Server",
         "category": "MCP",
         "icon": "$(checklist)"
       },
       {
-        "command": "mcpilot.generateTests",
+        "command": "mcplab.generateTests",
         "title": "Generate Tests",
         "category": "MCP",
         "icon": "$(beaker)"
       },
       {
-        "command": "mcpilot.saveAsTest",
+        "command": "mcplab.saveAsTest",
         "title": "Save Invocation as Test",
         "category": "MCP"
       },
       {
-        "command": "mcpilot.analyzeFailure",
+        "command": "mcplab.analyzeFailure",
         "title": "Analyze Failure with AI",
         "category": "MCP"
       },
       {
-        "command": "mcpilot.switchEnvironment",
+        "command": "mcplab.switchEnvironment",
         "title": "Switch Environment",
         "category": "MCP",
         "icon": "$(globe)"
       },
       {
-        "command": "mcpilot.runTests",
+        "command": "mcplab.runTests",
         "title": "Run Tests",
         "category": "MCP",
         "icon": "$(beaker)"
       },
       {
-        "command": "mcpilot.generateDocs",
+        "command": "mcplab.generateDocs",
         "title": "Generate Documentation",
         "category": "MCP",
         "icon": "$(book)"
       },
       {
-        "command": "mcpilot.securityScan",
+        "command": "mcplab.securityScan",
         "title": "Security Scan",
         "category": "MCP",
         "icon": "$(shield)"
       },
       {
-        "command": "mcpilot.compareServers",
+        "command": "mcplab.compareServers",
         "title": "Compare Servers",
         "category": "MCP",
         "icon": "$(git-compare)"
       },
       {
-        "command": "mcpilot.createServer",
+        "command": "mcplab.createServer",
         "title": "Create Server",
         "category": "MCP",
         "icon": "$(new-folder)"
       },
       {
-        "command": "mcpilot.toolsFromOpenApi",
+        "command": "mcplab.toolsFromOpenApi",
         "title": "Generate Tools from OpenAPI",
         "category": "MCP",
         "icon": "$(symbol-interface)"
       },
       {
-        "command": "mcpilot.startBridge",
-        "title": "Start MCP Bridge (expose MCPilot to AI clients)",
+        "command": "mcplab.startBridge",
+        "title": "Start MCP Bridge (expose MCP Lab to AI clients)",
         "category": "MCP",
         "icon": "$(broadcast)"
       },
       {
-        "command": "mcpilot.stopBridge",
+        "command": "mcplab.stopBridge",
         "title": "Stop MCP Bridge",
         "category": "MCP"
       },
       {
-        "command": "mcpilot.copyBridgeConfig",
+        "command": "mcplab.copyBridgeConfig",
         "title": "Copy MCP Bridge Client Config",
         "category": "MCP"
       }
@@ -233,133 +241,133 @@
     "menus": {
       "view/title": [
         {
-          "command": "mcpilot.open",
-          "when": "view == mcpilot.servers",
+          "command": "mcplab.open",
+          "when": "view == mcplab.servers",
           "group": "navigation@0"
         },
         {
-          "command": "mcpilot.addServer",
-          "when": "view == mcpilot.servers",
+          "command": "mcplab.addServer",
+          "when": "view == mcplab.servers",
           "group": "navigation@1"
         },
         {
-          "command": "mcpilot.refresh",
-          "when": "view == mcpilot.servers",
+          "command": "mcplab.refresh",
+          "when": "view == mcplab.servers",
           "group": "navigation@2"
         },
         {
-          "command": "mcpilot.showTrace",
-          "when": "view == mcpilot.servers",
+          "command": "mcplab.showTrace",
+          "when": "view == mcplab.servers",
           "group": "navigation@3"
         },
         {
-          "command": "mcpilot.showLogs",
-          "when": "view == mcpilot.servers",
+          "command": "mcplab.showLogs",
+          "when": "view == mcplab.servers",
           "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
-          "command": "mcpilot.connect",
-          "when": "view == mcpilot.servers && viewItem =~ /^server:(disconnected|error)$/",
+          "command": "mcplab.connect",
+          "when": "view == mcplab.servers && viewItem =~ /^server:(disconnected|error)$/",
           "group": "inline@1"
         },
         {
-          "command": "mcpilot.disconnect",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.disconnect",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "inline@1"
         },
         {
-          "command": "mcpilot.reconnect",
-          "when": "view == mcpilot.servers && viewItem =~ /^server:/",
+          "command": "mcplab.reconnect",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/",
           "group": "1_run@1"
         },
         {
-          "command": "mcpilot.showCapabilities",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.showCapabilities",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "1_run@2"
         },
         {
-          "command": "mcpilot.setAuthToken",
-          "when": "view == mcpilot.servers && viewItem =~ /^server:/",
+          "command": "mcplab.setAuthToken",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/",
           "group": "2_auth@1"
         },
         {
-          "command": "mcpilot.clearAuthToken",
-          "when": "view == mcpilot.servers && viewItem =~ /^server:/",
+          "command": "mcplab.clearAuthToken",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/",
           "group": "2_auth@2"
         },
         {
-          "command": "mcpilot.removeServer",
-          "when": "view == mcpilot.servers && viewItem =~ /^server:/",
+          "command": "mcplab.removeServer",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/",
           "group": "9_danger@1"
         },
         {
-          "command": "mcpilot.copyDefinition",
-          "when": "view == mcpilot.servers && viewItem =~ /^(tool|resource|prompt)$/",
+          "command": "mcplab.copyDefinition",
+          "when": "view == mcplab.servers && viewItem =~ /^(tool|resource|prompt)$/",
           "group": "inline@1"
         },
         {
-          "command": "mcpilot.diagnose",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.diagnose",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "1_run@3"
         },
         {
-          "command": "mcpilot.lint",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.lint",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "1_run@4"
         },
         {
-          "command": "mcpilot.generateTests",
-          "when": "view == mcpilot.servers && viewItem == tool",
+          "command": "mcplab.generateTests",
+          "when": "view == mcplab.servers && viewItem == tool",
           "group": "inline@2"
         },
         {
-          "command": "mcpilot.securityScan",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.securityScan",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "1_run@5"
         },
         {
-          "command": "mcpilot.generateDocs",
-          "when": "view == mcpilot.servers && viewItem == server:connected",
+          "command": "mcplab.generateDocs",
+          "when": "view == mcplab.servers && viewItem == server:connected",
           "group": "1_run@6"
         }
       ],
       "commandPalette": [
         {
-          "command": "mcpilot.copyDefinition",
+          "command": "mcplab.copyDefinition",
           "when": "false"
         },
         {
-          "command": "mcpilot.openItem",
+          "command": "mcplab.openItem",
           "when": "false"
         },
         {
-          "command": "mcpilot.saveAsTest",
+          "command": "mcplab.saveAsTest",
           "when": "false"
         },
         {
-          "command": "mcpilot.analyzeFailure",
+          "command": "mcplab.analyzeFailure",
           "when": "false"
         }
       ]
     },
     "configuration": {
-      "title": "MCPilot",
+      "title": "MCP Lab",
       "properties": {
-        "mcpilot.requestTimeoutMs": {
+        "mcplab.requestTimeoutMs": {
           "type": "number",
           "default": 30000,
           "minimum": 1000,
           "description": "Timeout in milliseconds for a single MCP request."
         },
-        "mcpilot.trace.maxEntries": {
+        "mcplab.trace.maxEntries": {
           "type": "number",
           "default": 2000,
           "minimum": 100,
           "description": "Maximum number of protocol trace entries kept in memory per session."
         },
-        "mcpilot.servers": {
+        "mcplab.servers": {
           "type": "array",
           "default": [],
           "markdownDescription": "Workspace-shared MCP servers. Servers added through the UI are stored separately and are not written here. Secrets must never be placed in this setting - use **MCP: Set Authentication Token** instead.",
@@ -411,10 +419,10 @@
             }
           }
         },
-        "mcpilot.environments": {
+        "mcplab.environments": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Environments MCPilot can switch between. Leave empty to use the built-in DEV / QC / PROD. A server points at a different target per environment via its `environments` block.",
+          "markdownDescription": "Environments MCP Lab can switch between. Leave empty to use the built-in DEV / QC / PROD. A server points at a different target per environment via its `environments` block.",
           "items": {
             "type": "object",
             "required": [
@@ -443,7 +451,7 @@
             }
           }
         },
-        "mcpilot.ai.permissions": {
+        "mcplab.ai.permissions": {
           "type": "object",
           "default": {
             "readTools": true,
@@ -451,7 +459,7 @@
             "destructiveTools": false,
             "production": false
           },
-          "markdownDescription": "What an AI client reaching MCPilot through the MCP bridge may do without asking. Anything not allowed here prompts for human approval; nothing is ever silently denied.",
+          "markdownDescription": "What an AI client reaching MCP Lab through the MCP bridge may do without asking. Anything not allowed here prompts for human approval; nothing is ever silently denied.",
           "properties": {
             "readTools": {
               "type": "boolean",
@@ -471,13 +479,13 @@
             }
           }
         },
-        "mcpilot.maxReconnectAttempts": {
+        "mcplab.maxReconnectAttempts": {
           "type": "number",
           "default": 5,
           "minimum": 0,
           "description": "How many times to retry a dropped connection, with exponential backoff. 0 disables automatic reconnection."
         },
-        "mcpilot.redactSecrets": {
+        "mcplab.redactSecrets": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "Mask credentials (bearer tokens, API keys, private keys, JWTs) in log output. Logs are frequently pasted into issues and chats, so this is on by default."
@@ -486,9 +494,9 @@
     },
     "chatParticipants": [
       {
-        "id": "mcpilot.mcp",
+        "id": "mcplab.mcp",
         "name": "mcp",
-        "fullName": "MCPilot",
+        "fullName": "MCP Lab",
         "description": "Ask about the MCP servers configured in this workspace",
         "isSticky": true,
         "commands": [
@@ -532,7 +540,7 @@
     "typescript": "^5.5.0"
   },
   "bin": {
-    "mcpilot": "./dist/cli.js"
+    "mcplab": "./dist/cli.js"
   },
   "icon": "media/icon.png",
   "galleryBanner": {

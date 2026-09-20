@@ -41,10 +41,10 @@ export async function lintServer(workbench: Workbench, node?: TreeNode): Promise
     `MCP lint: ${counts.errors} error(s), ${counts.warnings} warning(s), ${counts.info} info.` +
       (anchored > 0
         ? ` ${anchored} anchored to source.`
-        : ' No matching source locations; see the MCPilot panel.'),
-    'Open MCPilot',
+        : ' No matching source locations; see the MCP Lab panel.'),
+    'Open MCP Lab',
   );
-  if (action === 'Open MCPilot') {
+  if (action === 'Open MCP Lab') {
     workbench.focus({ serverId, view: 'doctor' });
   }
 }

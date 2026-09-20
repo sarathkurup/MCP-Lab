@@ -47,7 +47,7 @@ export const logsView: ViewDefinition = {
     if (store.entries.length === 0) {
       return emptyState(
         'No log lines yet.',
-        'MCPilot events, server stderr and MCP logging notifications all land here.',
+        'MCP Lab events, server stderr and MCP logging notifications all land here.',
       );
     }
 

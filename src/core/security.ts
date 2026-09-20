@@ -149,7 +149,7 @@ function scanConfig(input: SecurityScanInput): SecurityFinding[] {
       id: 'SEC005',
       severity: 'medium',
       title: 'Auto-connect is enabled against production',
-      detail: 'MCPilot will open a production session as soon as the editor starts.',
+      detail: 'MCP Lab will open a production session as soon as the editor starts.',
       evidence: 'config',
       remediation: 'Disable autoConnect for production environments.',
     });
@@ -301,7 +301,7 @@ function scanHistory(input: SecurityScanInput): SecurityFinding[] {
           detail: `"${entry.name}" returned a ${name}. Responses are stored in history and passed to models.`,
           evidence: 'history',
           target: entry.name,
-          remediation: 'Redact the value server-side, then clear MCPilot history.',
+          remediation: 'Redact the value server-side, then clear MCP Lab history.',
         });
       }
     }

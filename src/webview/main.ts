@@ -168,7 +168,7 @@ function renderChrome(): void {
   const current = ctx.currentServer();
 
   const headerChildren: Array<Node | null> = [
-    h('span', { class: 'app-title' }, 'MCPilot'),
+    h('span', { class: 'app-title' }, 'MCP Lab'),
     serverSelect,
     current
       ? h(

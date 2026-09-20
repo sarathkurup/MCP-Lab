@@ -1,4 +1,4 @@
-# MCPilot
+# MCP Lab
 
 A development environment for Model Context Protocol servers, inside VS Code —
 and a CLI that runs the same engine in CI.
@@ -6,6 +6,8 @@ and a CLI that runs the same engine in CI.
 Build MCP servers, connect to existing ones, explore tools and resources,
 execute and test them, debug protocol traffic, diagnose problems, generate tests,
 manage environments, and expose trusted MCP capabilities to AI agents.
+
+Developed by **Sarath Kumar**. MIT licensed.
 
 ---
 
@@ -33,11 +35,11 @@ That rule is not aspirational. `tests/cli.test.ts` spawns the compiled CLI as a
 real process and drives three MCP servers with no editor present — it would fail
 the moment core grew an editor dependency.
 
-MCPilot speaks **both halves** of the protocol: it is a client to the servers
+MCP Lab speaks **both halves** of the protocol: it is a client to the servers
 you configure, and a server to the AI clients you connect.
 
 ```
-  Claude Code / Copilot ──MCP──▶ MCPilot ──MCP──▶ CMS · Deployment · AWS
+  Claude Code / Copilot ──MCP──▶ MCP Lab ──MCP──▶ CMS · Deployment · AWS
                                        │
                                   one gate: classify,
                                   check environment,
@@ -53,7 +55,7 @@ you configure, and a server to the AI clients you connect.
 - A form built from each tool's JSON Schema — nothing is hardcoded. Objects,
   arrays, enums, formats, nullable via `anyOf`, nested structures.
 - Form ⇄ raw JSON, carrying the value across.
-- Validation before the request leaves MCPilot; per-field error marking.
+- Validation before the request leaves MCP Lab; per-field error marking.
 - Results rendered by shape: uniform arrays become tables, text, markdown,
   images, audio, embedded resources, prompt messages, errors.
 - Every invocation recorded and replayable byte-for-byte.
@@ -61,7 +63,7 @@ you configure, and a server to the AI clients you connect.
 ### Test
 
 - Tests are plain JSON (`**/*.mcp-test.json`) — reviewable, diffable, and
-  runnable in CI without MCPilot installed.
+  runnable in CI without MCP Lab installed.
 - Assertions use JSONPath-lite: `$.structuredContent.sum`, `$.content[0].text`.
 - `expectError`, `expectToolError`, latency budgets, `skip`.
 - Suites appear in VS Code's own Test Explorer with expected/actual diffs.
@@ -78,10 +80,10 @@ you configure, and a server to the AI clients you connect.
 - **Linter** — `MCP001`–`MCP012`, published as editor diagnostics.
 - **Security scan** — config, catalog, logs and history, looking for leaked
   credentials, PII, unannotated destructive tools and unencrypted transports.
-  Every finding names its evidence, because MCPilot cannot read server source
+  Every finding names its evidence, because MCP Lab cannot read server source
   and does not pretend to.
 - **Protocol trace** — every JSON-RPC frame in both directions, with round-trip
-  times. **Logs** — MCPilot events, server stderr and MCP logging
+  times. **Logs** — MCP Lab events, server stderr and MCP logging
   notifications, with credentials masked on the way in.
 
 ### Compose
@@ -120,10 +122,10 @@ you configure, and a server to the AI clients you connect.
 ## The CLI
 
 ```bash
-mcpilot test   --config mcp.config.json --junit report.xml
-mcpilot lint   --config mcp.config.json --max-warnings 5
-mcpilot doctor --config mcp.config.json
-mcpilot docs   --config mcp.config.json --out SERVER.md
+mcplab test   --config mcp.config.json --junit report.xml
+mcplab lint   --config mcp.config.json --max-warnings 5
+mcplab doctor --config mcp.config.json
+mcplab docs   --config mcp.config.json --out SERVER.md
 ```
 
 Exit codes: `0` ok, `1` failures found, `2` could not run. `--json` for
@@ -183,7 +185,7 @@ behind. Last verified 2026-09-20; these are other people's servers and may move.
 | `src/core/protocol.ts` | JSON-RPC envelopes + the MCP schema subset |
 | `src/core/transport/` | `Transport` interface, stdio, streamable HTTP |
 | `src/core/McpClient.ts` | Correlation, handshake, primitives, pagination |
-| `src/core/serverRole.ts` | The **server** half: MCPilot as an MCP server |
+| `src/core/serverRole.ts` | The **server** half: MCP Lab as an MCP server |
 | `src/core/schema.ts` | JSON Schema → form model, validation, pruning |
 | `src/core/execution.ts` | The one path every invocation takes |
 | `src/core/testing.ts` · `testgen.ts` | Test model, runner, schema-derived generation |

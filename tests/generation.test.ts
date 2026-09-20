@@ -79,7 +79,7 @@ describe('scaffold', () => {
       const files = scaffold({ ...options, language });
       const config = JSON.parse(files['mcp.config.json']) as { servers: unknown[] };
       assert.equal(config.servers.length, 1, language);
-      assert.match(files['README.md'], /mcpilot doctor/);
+      assert.match(files['README.md'], /mcplab doctor/);
     }
   });
 });
@@ -241,7 +241,7 @@ describe('OpenAPI → MCP', () => {
 describe('Workbench as an MCP server', () => {
   function role(options: { authorize?: () => boolean } = {}): McpServerRole {
     const server = new McpServerRole({
-      name: 'mcpilot',
+      name: 'mcplab',
       version: '0.1.0',
       authorize: options.authorize,
     });
@@ -276,7 +276,7 @@ describe('Workbench as an MCP server', () => {
       result: { protocolVersion: string; serverInfo: { name: string } };
     };
     assert.equal(response.result.protocolVersion, '2024-11-05');
-    assert.equal(response.result.serverInfo.name, 'mcpilot');
+    assert.equal(response.result.serverInfo.name, 'mcplab');
   });
 
   it('falls back to the latest version for an unknown one', async () => {

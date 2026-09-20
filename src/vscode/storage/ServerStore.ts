@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { AuthProvider, type AuthConfig } from '../../core/auth';
 import { deriveServerId, validateServerConfig, type ServerConfig } from '../../core/config';
 
-const STATE_KEY = 'mcpilot.servers.v1';
-const SECRET_PREFIX = 'mcpilot.auth.';
+const STATE_KEY = 'mcplab.servers.v1';
+const SECRET_PREFIX = 'mcplab.auth.';
 
 /**
  * Persistence for server definitions. Two sources are merged: servers the user
@@ -36,7 +36,7 @@ export class ServerStore {
 
   private listSettingsServers(): ServerConfig[] {
     const raw = vscode.workspace
-      .getConfiguration('mcpilot')
+      .getConfiguration('mcplab')
       .get<Partial<ServerConfig>[]>('servers', []);
 
     const configs: ServerConfig[] = [];
@@ -70,7 +70,7 @@ export class ServerStore {
     const user = this.listUserServers();
     const index = user.findIndex((s) => s.id === config.id);
     if (index === -1) {
-      throw new Error('Only servers added in MCPilot can be edited here.');
+      throw new Error('Only servers added in MCP Lab can be edited here.');
     }
     user[index] = config;
     await this.context.globalState.update(STATE_KEY, user.map(stripSource));
@@ -82,7 +82,7 @@ export class ServerStore {
     const next = user.filter((s) => s.id !== serverId);
     if (next.length === user.length) {
       throw new Error(
-        'This server is declared in settings. Remove it from "mcpilot.servers" instead.',
+        'This server is declared in settings. Remove it from "mcplab.servers" instead.',
       );
     }
     await this.context.globalState.update(STATE_KEY, next.map(stripSource));

@@ -1,7 +1,7 @@
 # Demo environment
 
 Three MCP servers standing in for an enterprise, with problems planted on
-purpose so every MCPilot feature has something real to find.
+purpose so every MCP Lab feature has something real to find.
 
 No install step: they are dependency-free Node scripts.
 
@@ -42,9 +42,9 @@ node ../dist/cli.js docs    --config mcp.config.json --server "Deployment MCP"
 ## Try it in the editor
 
 1. Open this folder in VS Code with the extension running (<kbd>F5</kbd> from the repo root).
-2. The three servers appear in the **MCPilot** view — they are declared in
+2. The three servers appear in the **MCP Lab** view — they are declared in
    `mcp.config.json`, so add them via **MCP: Add Server** or copy them into
-   `mcpilot.servers` in settings.
+   `mcplab.servers` in settings.
 3. Worth doing, in order:
    - **Explorer** → `updateEvent` → note the form built from the schema, then
      switch to JSON and back.

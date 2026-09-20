@@ -12,7 +12,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerCommands(context, workbench);
   registerChatParticipant(context, workbench);
 
-  const treeView = vscode.window.createTreeView('mcpilot.servers', {
+  const treeView = vscode.window.createTreeView('mcplab.servers', {
     treeDataProvider: workbench.tree,
     showCollapseAll: true,
   });
@@ -22,7 +22,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await workbench.reloadServers();
   workbench.logs.log(
     'info',
-    `MCPilot activated with ${workbench.manager.list().length} server(s)`,
+    `MCP Lab activated with ${workbench.manager.list().length} server(s)`,
   );
 
   // Auto-connect and workspace test discovery both run detached: neither a slow

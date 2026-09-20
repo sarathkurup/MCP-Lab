@@ -36,7 +36,7 @@ export const explorerView: ViewDefinition = {
     const store = scratch(ctx);
 
     if (!server) {
-      return emptyState('No server selected.', 'Add a server from the MCPilot sidebar.');
+      return emptyState('No server selected.', 'Add a server from the MCP Lab sidebar.');
     }
 
     if (server.status !== 'connected') {

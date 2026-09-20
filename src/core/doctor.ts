@@ -57,7 +57,7 @@ export async function diagnose(
       status: 'fail',
       detail: connection.lastError ?? `Server is ${connection.status}`,
       hint: 'Everything below needs a live connection.',
-      fixCommand: 'mcpilot.connect',
+      fixCommand: 'mcplab.connect',
     });
     return finish(connection, checks, []);
   }
@@ -172,14 +172,14 @@ export async function diagnose(
     status: caps.logging ? 'pass' : 'warn',
     detail: caps.logging
       ? 'Server can emit structured log notifications'
-      : 'No logging capability; only stderr and MCPilot-side events are available',
+      : 'No logging capability; only stderr and MCP Lab events are available',
   });
 
   // -- error handling -------------------------------------------------------
 
   if (probe && caps.tools) {
     try {
-      await client.callTool('__mcpilot_probe__', {});
+      await client.callTool('__mcplab_probe__', {});
       checks.push({
         id: 'errors',
         group: 'Error handling',
@@ -272,7 +272,7 @@ export async function diagnose(
       detail: options.hasCredential
         ? 'A token is stored in SecretStorage'
         : 'No credential stored; the endpoint is either public or will reject calls',
-      fixCommand: options.hasCredential ? undefined : 'mcpilot.setAuthToken',
+      fixCommand: options.hasCredential ? undefined : 'mcplab.setAuthToken',
     });
     const url = connection.config.url ?? '';
     const insecure = url.startsWith('http://') && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(url);
@@ -298,7 +298,7 @@ export async function diagnose(
         untested.length === 0
           ? `All ${catalog.tools.length} tool(s) are covered`
           : `${untested.length} of ${catalog.tools.length} tool(s) have no test`,
-      fixCommand: 'mcpilot.generateTests',
+      fixCommand: 'mcplab.generateTests',
     });
   } else {
     checks.push({

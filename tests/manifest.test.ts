@@ -59,9 +59,9 @@ function matchAll(pattern: RegExp, text: string): string[] {
 // ---------------------------------------------------------------------------
 
 describe('identity', () => {
-  it('is named MCPilot and says what it is', () => {
-    assert.equal(manifest.name, 'mcpilot');
-    assert.match(manifest.displayName, /^MCPilot/);
+  it('is named MCP Lab and says what it is', () => {
+    assert.equal(manifest.name, 'mcplab');
+    assert.match(manifest.displayName, /^MCP Lab/);
     // The tagline has to carry the search terms, because displayName is what
     // people read in the extensions list.
     assert.match(manifest.displayName, /MCP Inspector/i);
@@ -132,9 +132,9 @@ describe('commands', () => {
   });
 
   it('only executes commands that exist', () => {
-    // Commands MCPilot invokes on itself must resolve; VS Code's own are fine.
+    // Commands MCP Lab invokes on itself must resolve; VS Code's own are fine.
     const executed = matchAll(/executeCommand\(\s*'([^']+)'/g, ALL_SOURCE).filter((command) =>
-      command.startsWith('mcpilot.'),
+      command.startsWith('mcplab.'),
     );
     const missing = executed.filter((command) => !declared.has(command));
     assert.deepEqual(missing, [], 'executeCommand targets that are not declared');
@@ -162,9 +162,9 @@ describe('commands', () => {
     }
   });
 
-  it('namespaces every command under mcpilot', () => {
+  it('namespaces every command under mcplab', () => {
     for (const command of declared) {
-      assert.match(command, /^mcpilot\./, `${command} is not namespaced`);
+      assert.match(command, /^mcplab\./, `${command} is not namespaced`);
     }
   });
 });
@@ -172,8 +172,8 @@ describe('commands', () => {
 describe('views', () => {
   it('wires the activity bar container to its views', () => {
     const container = manifest.contributes.viewsContainers.activitybar[0];
-    assert.equal(container.id, 'mcpilot');
-    assert.equal(container.title, 'MCPilot');
+    assert.equal(container.id, 'mcplab');
+    assert.equal(container.title, 'MCP Lab');
     assert.ok(manifest.contributes.views[container.id], 'no views for the container');
   });
 
@@ -222,22 +222,22 @@ describe('configuration', () => {
     assert.ok(read.length > 0, 'no configuration reads were found; the pattern may have changed');
     for (const key of read) {
       assert.ok(
-        declared.has(`mcpilot.${key}`),
-        `code reads mcpilot.${key}, which package.json does not declare`,
+        declared.has(`mcplab.${key}`),
+        `code reads mcplab.${key}, which package.json does not declare`,
       );
     }
   });
 
-  it('namespaces every setting under mcpilot', () => {
+  it('namespaces every setting under mcplab', () => {
     for (const key of declared) {
-      assert.match(key, /^mcpilot\./, `${key} is not namespaced`);
+      assert.match(key, /^mcplab\./, `${key} is not namespaced`);
     }
   });
 
-  it('reads configuration from the mcpilot section only', () => {
+  it('reads configuration from the mcplab section only', () => {
     const sections = matchAll(/getConfiguration\(\s*'([^']+)'/g, ALL_SOURCE);
     for (const section of sections) {
-      assert.equal(section, 'mcpilot');
+      assert.equal(section, 'mcplab');
     }
   });
 });

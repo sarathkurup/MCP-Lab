@@ -10,12 +10,12 @@ import { TestRunner } from '../../core/testing';
 import { generateTests } from '../../core/testgen';
 import type { Workbench } from '../Workbench';
 
-const TOKEN_KEY = 'mcpilot.bridgeToken';
+const TOKEN_KEY = 'mcplab.bridgeToken';
 
 /**
  * Workbench exposed as an MCP server.
  *
- *   Claude Code / Copilot ──MCP──▶ MCPilot ──MCP──▶ CMS, Deployment, AWS…
+ *   Claude Code / Copilot ──MCP──▶ MCP Lab ──MCP──▶ CMS, Deployment, AWS…
  *
  * The point is not convenience, it is control: an AI client gets one endpoint,
  * and every call through it passes the same guards a human's click would -
@@ -32,10 +32,10 @@ export class WorkbenchMcpServer implements vscode.Disposable {
 
   constructor(private readonly workbench: Workbench) {
     this.role = new McpServerRole({
-      name: 'mcpilot',
+      name: 'mcplab',
       version: '0.1.0',
       instructions: [
-        'MCPilot aggregates the MCP servers a developer has configured.',
+        'MCP Lab aggregates the MCP servers a developer has configured.',
         'Use listMcpServers to see what exists, inspectMcpTool before calling anything,',
         'and executeMcpTool to invoke a tool on one of those servers.',
         'Write and destructive operations require a human to approve them, so a refusal',
@@ -81,7 +81,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     this.port = typeof address === 'object' && address ? address.port : undefined;
     this.http = server;
 
-    this.workbench.logs.log('info', `MCPilot MCP server listening on ${this.endpoint}`);
+    this.workbench.logs.log('info', `MCP Lab MCP server listening on ${this.endpoint}`);
     return { url: this.endpoint!, token: this.token };
   }
 
@@ -96,7 +96,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
       server.closeAllConnections?.();
       server.close(() => resolve());
     });
-    this.workbench.logs.log('info', 'MCPilot MCP server stopped');
+    this.workbench.logs.log('info', 'MCP Lab MCP server stopped');
   }
 
   private async handleRequest(
@@ -151,7 +151,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
 
   private async authorize(name: string, args: Record<string, unknown>): Promise<boolean> {
     const policy = vscode.workspace
-      .getConfiguration('mcpilot')
+      .getConfiguration('mcplab')
       .get<{ readTools: boolean; writeTools: boolean; destructiveTools: boolean; production: boolean }>(
         'ai.permissions',
         { readTools: true, writeTools: false, destructiveTools: false, production: false },
@@ -225,7 +225,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
       tool: {
         name: 'listMcpServers',
         description:
-          'Lists the MCP servers configured in MCPilot, with their status, health and what they expose.',
+          'Lists the MCP servers configured in MCP Lab, with their status, health and what they expose.',
         inputSchema: { type: 'object', properties: {} },
         annotations: { readOnlyHint: true },
       },
@@ -334,7 +334,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     this.role.register({
       tool: {
         name: 'getMcpLogs',
-        description: 'Returns recent MCPilot and server log lines, useful when a call failed.',
+        description: 'Returns recent MCP Lab and server log lines, useful when a call failed.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -358,7 +358,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     this.role.register({
       tool: {
         name: 'diagnoseMcpServer',
-        description: 'Runs MCPilot diagnostics against a server: connectivity, protocol, schema quality, security, coverage.',
+        description: 'Runs MCP Lab diagnostics against a server: connectivity, protocol, schema quality, security, coverage.',
         inputSchema: {
           type: 'object',
           properties: { server: { type: 'string' } },
@@ -478,7 +478,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     }
     if (connection.status !== 'connected') {
       throw new Error(
-        `"${connection.config.name}" is ${connection.status}. Ask the developer to connect it in MCPilot.`,
+        `"${connection.config.name}" is ${connection.status}. Ask the developer to connect it in MCP Lab.`,
       );
     }
     return connection;

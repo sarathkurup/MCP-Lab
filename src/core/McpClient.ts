@@ -119,8 +119,8 @@ export class McpClient {
       protocolVersion: LATEST_PROTOCOL_VERSION,
       capabilities: this.options.capabilities ?? {},
       clientInfo: this.options.clientInfo ?? {
-        name: 'mcpilot',
-        title: 'MCPilot',
+        name: 'mcplab',
+        title: 'MCP Lab',
         version: '0.1.0',
       },
     })) as InitializeResult;
@@ -131,7 +131,7 @@ export class McpClient {
     if (!SUPPORTED_PROTOCOL_VERSIONS.includes(result.protocolVersion)) {
       throw new McpError(
         ErrorCode.InternalError,
-        `Server speaks protocol ${result.protocolVersion}; MCPilot supports ${SUPPORTED_PROTOCOL_VERSIONS.join(', ')}`,
+        `Server speaks protocol ${result.protocolVersion}; MCP Lab supports ${SUPPORTED_PROTOCOL_VERSIONS.join(', ')}`,
       );
     }
 
@@ -345,7 +345,7 @@ export class McpClient {
           id: message.id,
           error: {
             code: ErrorCode.MethodNotFound,
-            message: `MCPilot does not implement "${message.method}" yet`,
+            message: `MCP Lab does not implement "${message.method}" yet`,
           },
         })
         .catch(() => undefined);

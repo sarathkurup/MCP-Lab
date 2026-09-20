@@ -37,7 +37,7 @@ export const testsView: ViewDefinition = {
     if (store.suites.length === 0) {
       return emptyState(
         'No MCP test suites found.',
-        'Suites are plain JSON files matching **/*.mcp-test.json, so they run in CI without MCPilot. Generate a starter suite from any tool.',
+        'Suites are plain JSON files matching **/*.mcp-test.json, so they run in CI without MCP Lab. Generate a starter suite from any tool.',
         h(
           'button',
           {

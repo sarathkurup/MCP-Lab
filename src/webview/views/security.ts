@@ -68,7 +68,7 @@ export const securityView: ViewDefinition = {
       body.appendChild(
         emptyState(
           `Scan ${server.name}`,
-          'Reviews the configuration, the advertised catalog, and what has already passed through this session’s logs and history. MCPilot cannot read server source, so it never claims to - every finding names its evidence.',
+          'Reviews the configuration, the advertised catalog, and what has already passed through this session’s logs and history. MCP Lab cannot read server source, so it never claims to - every finding names its evidence.',
         ),
       );
       return h('div', { class: 'logs-view' }, toolbar, body);

@@ -150,7 +150,7 @@ export function lint(input: LintInput): LintFinding[] {
         severity: RULES.MCP006.severity,
         message: `"${tool.name}" declares no output schema`,
         target,
-        hint: 'An output schema lets clients validate structured content and lets MCPilot generate assertions.',
+        hint: 'An output schema lets clients validate structured content and lets MCP Lab generate assertions.',
       });
     }
 

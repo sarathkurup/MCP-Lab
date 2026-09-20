@@ -203,7 +203,7 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('generateTests', async (params) => {
     const { serverId, toolName } = params as { serverId: string; toolName: string };
-    await vscode.commands.executeCommand('mcpilot.generateTests', serverId, toolName);
+    await vscode.commands.executeCommand('mcplab.generateTests', serverId, toolName);
     return true;
   });
 
@@ -278,7 +278,7 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('generateDocs', async (params) => {
     const { serverId } = params as { serverId: string };
-    await vscode.commands.executeCommand('mcpilot.generateDocs', { serverId });
+    await vscode.commands.executeCommand('mcplab.generateDocs', { serverId });
     return true;
   });
 
@@ -408,13 +408,13 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('analyzeFailure', async (params) => {
     const { historyId } = params as { historyId: string };
-    await vscode.commands.executeCommand('mcpilot.analyzeFailure', historyId);
+    await vscode.commands.executeCommand('mcplab.analyzeFailure', historyId);
     return true;
   });
 
   router.on('saveAsTest', async (params) => {
     const { historyId } = params as { historyId: string };
-    await vscode.commands.executeCommand('mcpilot.saveAsTest', historyId);
+    await vscode.commands.executeCommand('mcplab.saveAsTest', historyId);
     return true;
   });
 }

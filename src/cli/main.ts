@@ -1,14 +1,14 @@
 /**
- * `mcpilot` CLI.
+ * `mcplab` CLI.
  *
  * This exists because `src/core` has no VS Code dependency: the same engine
  * that powers the extension runs tests, lints and diagnoses a server from a
  * pipeline, with no editor installed.
  *
- *   mcpilot test   --config mcp.config.json [--server NAME] [--junit out.xml]
- *   mcpilot lint   --config mcp.config.json [--max-warnings N]
- *   mcpilot doctor --config mcp.config.json
- *   mcpilot docs   --config mcp.config.json [--out README.md]
+ *   mcplab test   --config mcp.config.json [--server NAME] [--junit out.xml]
+ *   mcplab lint   --config mcp.config.json [--max-warnings N]
+ *   mcplab doctor --config mcp.config.json
+ *   mcplab docs   --config mcp.config.json [--out README.md]
  *
  * Exit codes: 0 success, 1 failures found, 2 could not run.
  */
@@ -406,7 +406,7 @@ function parseArgs(argv: string[]): CliOptions | undefined {
 function printUsage(): void {
   process.stdout.write(
     [
-      'mcpilot <command> [options]',
+      'mcplab <command> [options]',
       '',
       'Commands:',
       '  test     Run declarative MCP test suites',
