@@ -7,7 +7,7 @@ const LEGACY_GLOB = '**/mcp-tests/**/*.json';
 /**
  * Discovers and writes declarative test suites in the workspace. Tests are
  * plain JSON files so they can be reviewed, diffed and run in CI without
- * Workbench being installed.
+ * McpLab being installed.
  */
 export class TestRepository implements vscode.Disposable {
   private readonly suites = new Map<string, TestSuite>();

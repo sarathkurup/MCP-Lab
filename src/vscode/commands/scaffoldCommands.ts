@@ -6,12 +6,12 @@ import {
   type OpenApiDocument,
 } from '../../core/openapi';
 import { scaffold, type ScaffoldLanguage, type ScaffoldOptions, type ScaffoldTransport } from '../../core/scaffold';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 import { openMarkdownDocument } from './helpers';
 
 /** Creating a new MCP server, and turning an existing REST API into one. */
 
-export async function createServer(workbench: Workbench): Promise<void> {
+export async function createServer(lab: McpLab): Promise<void> {
   const name = await vscode.window.showInputBox({
     title: 'Create MCP Server (1/4)',
     prompt: 'Server name',
@@ -114,7 +114,7 @@ export async function createServer(workbench: Workbench): Promise<void> {
   }
 
   if (action === 'Add to MCP Lab') {
-    const created = await workbench.store.add(
+    const created = await lab.store.add(
       options.transport === 'stdio'
         ? {
             name: options.name,
@@ -125,7 +125,7 @@ export async function createServer(workbench: Workbench): Promise<void> {
           }
         : { name: options.name, transport: 'http', url: 'http://localhost:3000/mcp' },
     );
-    await workbench.reloadServers();
+    await lab.reloadServers();
     void vscode.window.showInformationMessage(
       `Added "${created.name}". Build it first, then connect.`,
     );

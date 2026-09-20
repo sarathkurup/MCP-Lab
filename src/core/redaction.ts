@@ -1,5 +1,5 @@
 /**
- * Redaction for anything Workbench displays or persists.
+ * Redaction for anything McpLab displays or persists.
  *
  * Logs, history and traces all outlive the moment they were produced: they are
  * copied into issues, pasted into chats and fed to models. A token that reaches

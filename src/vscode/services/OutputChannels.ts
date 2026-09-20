@@ -41,7 +41,7 @@ export class OutputChannels implements vscode.Disposable {
 function formatLog(entry: LogEntry): string {
   const time = new Date(entry.timestamp).toISOString().slice(11, 23);
   const scope = entry.serverId ? ` [${entry.serverId}]` : '';
-  const origin = entry.source === 'workbench' ? '' : ` (${entry.source})`;
+  const origin = entry.source === 'mcplab' ? '' : ` (${entry.source})`;
   return `${time} ${entry.level.toUpperCase().padEnd(5)}${scope}${origin} ${entry.message}`;
 }
 

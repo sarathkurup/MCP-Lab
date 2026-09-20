@@ -9,10 +9,10 @@ import {
 } from './protocol';
 
 /**
- * The other half of the protocol: Workbench acting as an MCP *server*.
+ * The other half of the protocol: McpLab acting as an MCP *server*.
  *
- * This is what lets an AI client reach the servers Workbench already manages -
- * one connection instead of N, with Workbench's guards in front of them.
+ * This is what lets an AI client reach the servers McpLab already manages -
+ * one connection instead of N, with McpLab's guards in front of them.
  * Transport-free and UI-free, so it can be hosted over HTTP, a pipe, or stdio.
  */
 

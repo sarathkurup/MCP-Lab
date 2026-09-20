@@ -10,7 +10,7 @@ import { generateTests } from '../../core/testgen';
  *
  * Every feature degrades: test generation falls back to the deterministic
  * schema generator, and failure analysis falls back to a structured local
- * explanation. Nothing in Workbench requires a model to be present.
+ * explanation. Nothing in McpLab requires a model to be present.
  */
 export class AiService {
   async isAvailable(): Promise<boolean> {
@@ -99,7 +99,7 @@ export class AiService {
   }
 
   /**
-   * Explains a failed invocation using everything Workbench already captured:
+   * Explains a failed invocation using everything McpLab already captured:
    * the tool definition, the request, the response and the surrounding logs.
    */
   async analyzeFailure(context: {

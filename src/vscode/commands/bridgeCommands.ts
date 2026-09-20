@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 /**
- * Exposing Workbench to AI clients. The endpoint is loopback-only and
+ * Exposing McpLab to AI clients. The endpoint is loopback-only and
  * token-gated, and the token is only ever placed on the clipboard at the
  * user's explicit request.
  */
 
-export async function startBridge(workbench: Workbench): Promise<void> {
-  const { url } = await workbench.bridge.start();
+export async function startBridge(lab: McpLab): Promise<void> {
+  const { url } = await lab.bridge.start();
 
   const action = await vscode.window.showInformationMessage(
     `MCP bridge listening on ${url}`,
@@ -17,27 +17,27 @@ export async function startBridge(workbench: Workbench): Promise<void> {
   );
 
   if (action === 'Copy client config') {
-    await copyBridgeConfig(workbench);
+    await copyBridgeConfig(lab);
   } else if (action === 'Permissions…') {
     await vscode.commands.executeCommand(
-      'workbench.action.openSettings',
+      'lab.action.openSettings',
       'mcplab.ai.permissions',
     );
   }
 }
 
-export async function stopBridge(workbench: Workbench): Promise<void> {
-  if (!workbench.bridge.isRunning) {
+export async function stopBridge(lab: McpLab): Promise<void> {
+  if (!lab.bridge.isRunning) {
     void vscode.window.showInformationMessage('The MCP bridge is not running.');
     return;
   }
-  await workbench.bridge.stop();
-  workbench.bridge.clearSessionApprovals();
+  await lab.bridge.stop();
+  lab.bridge.clearSessionApprovals();
   void vscode.window.showInformationMessage('MCP bridge stopped.');
 }
 
-export async function copyBridgeConfig(workbench: Workbench): Promise<void> {
-  const { url, token } = await workbench.bridge.start();
+export async function copyBridgeConfig(lab: McpLab): Promise<void> {
+  const { url, token } = await lab.bridge.start();
 
   const confirmed = await vscode.window.showWarningMessage(
     'Copy the bridge configuration to the clipboard?',

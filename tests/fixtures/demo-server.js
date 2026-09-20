@@ -1,6 +1,6 @@
 'use strict';
 /**
- * A dependency-free MCP server used to test Workbench's core.
+ * A dependency-free MCP server used to test McpLab's core.
  * Run directly for stdio; `createHandler()` is reused by the HTTP fixture.
  *
  * This doubles as the seed of the demo environment: it exposes one read-only
@@ -144,7 +144,7 @@ function createHandler(options = {}) {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: {}, resources: {}, prompts: {}, logging: {} },
           serverInfo: { name: 'demo-mcp', version: '1.0.0' },
-          instructions: 'Demo server for MCP Workbench tests.',
+          instructions: 'Demo server for MCP McpLab tests.',
         });
 
       case 'ping':
@@ -162,7 +162,7 @@ function createHandler(options = {}) {
         const name = params && params.name;
         const args = (params && params.arguments) || {};
 
-        // A conforming server enforces its own declared schema, so Workbench's
+        // A conforming server enforces its own declared schema, so McpLab's
         // generated negative cases have something real to assert against.
         const definition = TOOLS.find((t) => t.name === name);
         if (definition) {

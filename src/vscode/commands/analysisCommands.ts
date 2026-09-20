@@ -2,28 +2,28 @@ import * as vscode from 'vscode';
 import { lint, summarize } from '../../core/linter';
 import type { TestCase } from '../../core/testing';
 import type { TreeNode } from '../ui/ServersTreeProvider';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 import { openMarkdownDocument, resolveServerId } from './helpers';
 
 /** Diagnostics, linting, test generation, failure analysis and environments. */
 
 export async function diagnoseServer(
-  workbench: Workbench,
+  lab: McpLab,
   node?: TreeNode,
 ): Promise<void> {
-  const serverId = await resolveServerId(workbench, node, 'Diagnose which server?');
+  const serverId = await resolveServerId(lab, node, 'Diagnose which server?');
   if (!serverId) {
     return;
   }
-  workbench.focus({ serverId, view: 'doctor' });
+  lab.focus({ serverId, view: 'doctor' });
 }
 
-export async function lintServer(workbench: Workbench, node?: TreeNode): Promise<void> {
-  const serverId = await resolveServerId(workbench, node, 'Lint which server?');
+export async function lintServer(lab: McpLab, node?: TreeNode): Promise<void> {
+  const serverId = await resolveServerId(lab, node, 'Lint which server?');
   if (!serverId) {
     return;
   }
-  const connection = workbench.manager.get(serverId);
+  const connection = lab.manager.get(serverId);
   if (!connection || connection.status !== 'connected') {
     throw new Error('Connect the server before linting it.');
   }
@@ -32,9 +32,9 @@ export async function lintServer(workbench: Workbench, node?: TreeNode): Promise
     tools: connection.catalog.tools,
     resources: connection.catalog.resources,
     prompts: connection.catalog.prompts,
-    testedTargets: workbench.tests.list().length ? workbench.tests.testedTargets() : undefined,
+    testedTargets: lab.tests.list().length ? lab.tests.testedTargets() : undefined,
   });
-  const anchored = await workbench.lintDiagnostics.publish(findings, connection.config.name);
+  const anchored = await lab.lintDiagnostics.publish(findings, connection.config.name);
   const counts = summarize(findings);
 
   const action = await vscode.window.showInformationMessage(
@@ -45,21 +45,21 @@ export async function lintServer(workbench: Workbench, node?: TreeNode): Promise
     'Open MCP Lab',
   );
   if (action === 'Open MCP Lab') {
-    workbench.focus({ serverId, view: 'doctor' });
+    lab.focus({ serverId, view: 'doctor' });
   }
 }
 
 export async function generateTestsCommand(
-  workbench: Workbench,
+  lab: McpLab,
   serverIdArg?: string,
   toolNameArg?: string,
 ): Promise<void> {
   const serverId =
-    serverIdArg ?? (await resolveServerId(workbench, undefined, 'Generate tests for which server?'));
+    serverIdArg ?? (await resolveServerId(lab, undefined, 'Generate tests for which server?'));
   if (!serverId) {
     return;
   }
-  const connection = workbench.manager.get(serverId);
+  const connection = lab.manager.get(serverId);
   if (!connection || connection.status !== 'connected') {
     throw new Error('Connect the server before generating tests.');
   }
@@ -90,7 +90,7 @@ export async function generateTestsCommand(
       location: vscode.ProgressLocation.Notification,
       title: `Generating tests for ${toolName}…`,
     },
-    (_progress, token) => workbench.ai.generateTests(tool, connection.config.name, token),
+    (_progress, token) => lab.ai.generateTests(tool, connection.config.name, token),
   );
 
   // The user picks what to keep; nothing is written unasked.
@@ -116,7 +116,7 @@ export async function generateTestsCommand(
     return;
   }
 
-  const uri = await workbench.tests.append(
+  const uri = await lab.tests.append(
     toolName,
     picked.map((entry) => entry.value),
     connection.config.name,
@@ -132,11 +132,11 @@ export async function generateTestsCommand(
 }
 
 /** Turns a recorded invocation into a regression test. */
-export async function saveAsTest(workbench: Workbench, historyId?: string): Promise<void> {
+export async function saveAsTest(lab: McpLab, historyId?: string): Promise<void> {
   if (!historyId) {
     return;
   }
-  const entry = workbench.history.get(historyId);
+  const entry = lab.history.get(historyId);
   if (!entry) {
     throw new Error('That invocation is no longer in history.');
   }
@@ -163,7 +163,7 @@ export async function saveAsTest(workbench: Workbench, historyId?: string): Prom
       : { assertions: assertionsFor(entry.output) }),
   };
 
-  const uri = await workbench.tests.append(entry.name, [test], entry.serverName);
+  const uri = await lab.tests.append(entry.name, [test], entry.serverName);
   const open = await vscode.window.showInformationMessage(
     `Saved to ${vscode.workspace.asRelativePath(uri)}.`,
     'Open',
@@ -202,25 +202,25 @@ export function assertionsFor(output: unknown): TestCase['assertions'] {
   return assertions;
 }
 
-export async function analyzeFailure(workbench: Workbench, historyId?: string): Promise<void> {
+export async function analyzeFailure(lab: McpLab, historyId?: string): Promise<void> {
   if (!historyId) {
     return;
   }
-  const entry = workbench.history.get(historyId);
+  const entry = lab.history.get(historyId);
   if (!entry) {
     throw new Error('That invocation is no longer in history.');
   }
 
-  const connection = workbench.manager.get(entry.serverId);
+  const connection = lab.manager.get(entry.serverId);
   const tool = connection?.catalog.tools.find((t) => t.name === entry.name);
-  const logs = workbench.logs
+  const logs = lab.logs
     .query({ serverId: entry.serverId })
     .slice(-30)
     .map((line) => `${line.level}: ${line.message}`);
 
   const analysis = await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'Analyzing failure…' },
-    (_progress, token) => workbench.ai.analyzeFailure({ entry, tool, logs, token }),
+    (_progress, token) => lab.ai.analyzeFailure({ entry, tool, logs, token }),
   );
 
   await openMarkdownDocument(
@@ -245,18 +245,18 @@ export async function analyzeFailure(workbench: Workbench, historyId?: string): 
   );
 }
 
-export async function switchEnvironment(workbench: Workbench): Promise<void> {
-  const environments = workbench.environments.list();
+export async function switchEnvironment(lab: McpLab): Promise<void> {
+  const environments = lab.environments.list();
   const picked = await vscode.window.showQuickPick(
     environments.map((environment) => ({
       label: environment.name,
       description: environment.tier.toUpperCase(),
-      detail: environment.id === workbench.activeEnvironment?.id ? 'Currently active' : undefined,
+      detail: environment.id === lab.activeEnvironment?.id ? 'Currently active' : undefined,
       value: environment,
     })),
     { placeHolder: 'Switch environment' },
   );
-  if (!picked || picked.value.id === workbench.activeEnvironment?.id) {
+  if (!picked || picked.value.id === lab.activeEnvironment?.id) {
     return;
   }
 
@@ -275,6 +275,6 @@ export async function switchEnvironment(workbench: Workbench): Promise<void> {
     }
   }
 
-  await workbench.setEnvironment(picked.value.id);
+  await lab.setEnvironment(picked.value.id);
   void vscode.window.showInformationMessage(`MCP environment: ${picked.value.name}`);
 }

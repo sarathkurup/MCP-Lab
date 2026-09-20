@@ -222,7 +222,7 @@ function typescriptProject(options: ScaffoldOptions): ScaffoldFiles {
     ].join('\n');
   }
 
-  files['mcp.config.json'] = workbenchConfig(options, {
+  files['mcp.config.json'] = labConfig(options, {
     command: 'node',
     args: ['dist/server.js'],
   });
@@ -353,7 +353,7 @@ function pythonProject(options: ScaffoldOptions): ScaffoldFiles {
 
   files[`src/${pkgName}/__init__.py`] = '';
   files[`src/${pkgName}/server.py`] = body.join('\n');
-  files['mcp.config.json'] = workbenchConfig(options, {
+  files['mcp.config.json'] = labConfig(options, {
     command: 'python',
     args: ['-m', `${pkgName}.server`],
   });
@@ -468,7 +468,7 @@ function csharpProject(options: ScaffoldOptions): ScaffoldFiles {
     ].join('\n');
   }
 
-  files['mcp.config.json'] = workbenchConfig(options, {
+  files['mcp.config.json'] = labConfig(options, {
     command: 'dotnet',
     args: ['run', '--project', `${projectName}.csproj`],
   });
@@ -485,7 +485,7 @@ function csharpProject(options: ScaffoldOptions): ScaffoldFiles {
 
 // ---------------------------------------------------------------------------
 
-function workbenchConfig(
+function labConfig(
   options: ScaffoldOptions,
   stdio: { command: string; args: string[] },
 ): string {

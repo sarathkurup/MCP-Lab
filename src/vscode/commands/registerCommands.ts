@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { describeTarget, validateServerConfig, type ServerConfig } from '../../core/config';
 import type { TreeNode } from '../ui/ServersTreeProvider';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 import {
   analyzeFailure,
   diagnoseServer,
@@ -19,8 +19,8 @@ import {
   securityScan,
 } from './reportCommands';
 
-/** Commands operate on the whole Workbench rather than a hand-picked slice. */
-type CommandDeps = Workbench;
+/** Commands operate on the whole McpLab rather than a hand-picked slice. */
+type CommandDeps = McpLab;
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -48,7 +48,7 @@ export function registerCommands(
   register('mcplab.refresh', () => deps.reloadServers());
   register('mcplab.showLogs', () => deps.channels.showLogs());
   register('mcplab.showTrace', () => deps.channels.showTrace());
-  register('mcplab.open', (node?: TreeNode) => openWorkbench(deps, node));
+  register('mcplab.open', (node?: TreeNode) => openMcpLab(deps, node));
   register('mcplab.openItem', (node?: TreeNode) => openItem(deps, node));
   register('mcplab.setAuthToken', (node?: TreeNode) => setAuthToken(deps, node));
   register('mcplab.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
@@ -120,10 +120,10 @@ async function signOut(deps: CommandDeps, node?: TreeNode): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Workbench panel
+// McpLab panel
 // ---------------------------------------------------------------------------
 
-function openWorkbench(deps: CommandDeps, node?: TreeNode): void {
+function openMcpLab(deps: CommandDeps, node?: TreeNode): void {
   deps.focus({ serverId: node?.serverId, view: 'explorer' });
 }
 

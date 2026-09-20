@@ -68,7 +68,7 @@ export class McpClient {
   private readonly errors = new Emitter<Error>();
   private readonly closedEvent = new Emitter<string | undefined>();
 
-  /** Every frame Workbench sends, before it hits the wire. */
+  /** Every frame McpLab sends, before it hits the wire. */
   readonly onDidSend = this.outgoing.on.bind(this.outgoing);
   /** Every frame received, before it is dispatched. */
   readonly onDidReceive = this.incoming.on.bind(this.incoming);
@@ -336,7 +336,7 @@ export class McpClient {
     }
 
     if (isJsonRpcRequest(message)) {
-      // Workbench advertises no server->client capabilities yet (sampling,
+      // McpLab advertises no server->client capabilities yet (sampling,
       // roots and elicitation arrive in a later phase), so decline politely
       // instead of leaving the server waiting.
       void this.transport

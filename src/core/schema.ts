@@ -229,7 +229,7 @@ export function defaultsFor(spec: FieldSpec): unknown {
 
 /**
  * Validates a value against a normalized spec. This runs before every tool call
- * so a malformed request is caught in Workbench rather than on the server.
+ * so a malformed request is caught in McpLab rather than on the server.
  */
 export function validateValue(spec: FieldSpec, value: unknown): ValidationError[] {
   const errors: ValidationError[] = [];

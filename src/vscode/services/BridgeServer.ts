@@ -8,12 +8,12 @@ import type { JsonRpcMessage } from '../../core/protocol';
 import { jsonResult, McpServerRole, textResult } from '../../core/serverRole';
 import { TestRunner } from '../../core/testing';
 import { generateTests } from '../../core/testgen';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 const TOKEN_KEY = 'mcplab.bridgeToken';
 
 /**
- * Workbench exposed as an MCP server.
+ * McpLab exposed as an MCP server.
  *
  *   Claude Code / Copilot ──MCP──▶ MCP Lab ──MCP──▶ CMS, Deployment, AWS…
  *
@@ -22,7 +22,7 @@ const TOKEN_KEY = 'mcplab.bridgeToken';
  * tool classification, environment tier, and an approval prompt for anything
  * that writes. Bound to loopback and gated by a bearer token.
  */
-export class WorkbenchMcpServer implements vscode.Disposable {
+export class BridgeServer implements vscode.Disposable {
   private readonly role: McpServerRole;
   private http?: Server;
   private port?: number;
@@ -30,7 +30,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
   /** Tools the user approved for this session, so one yes is not asked twice. */
   private readonly sessionApprovals = new Set<string>();
 
-  constructor(private readonly workbench: Workbench) {
+  constructor(private readonly lab: McpLab) {
     this.role = new McpServerRole({
       name: 'mcplab',
       version: '0.1.0',
@@ -42,7 +42,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         'is a normal outcome rather than an error to work around.',
       ].join(' '),
       authorize: (name, args) => this.authorize(name, args),
-      onLog: (message) => this.workbench.logs.log('warn', message, { source: 'workbench' }),
+      onLog: (message) => this.lab.logs.log('warn', message, { source: 'mcplab' }),
     });
 
     this.registerTools();
@@ -66,8 +66,8 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     }
 
     this.token =
-      (await this.workbench.context.secrets.get(TOKEN_KEY)) ?? randomBytes(24).toString('hex');
-    await this.workbench.context.secrets.store(TOKEN_KEY, this.token);
+      (await this.lab.context.secrets.get(TOKEN_KEY)) ?? randomBytes(24).toString('hex');
+    await this.lab.context.secrets.store(TOKEN_KEY, this.token);
 
     const server = createServer((req, res) => void this.handleRequest(req, res));
 
@@ -81,7 +81,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
     this.port = typeof address === 'object' && address ? address.port : undefined;
     this.http = server;
 
-    this.workbench.logs.log('info', `MCP Lab MCP server listening on ${this.endpoint}`);
+    this.lab.logs.log('info', `MCP Lab MCP server listening on ${this.endpoint}`);
     return { url: this.endpoint!, token: this.token };
   }
 
@@ -96,7 +96,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
       server.closeAllConnections?.();
       server.close(() => resolve());
     });
-    this.workbench.logs.log('info', 'MCP Lab MCP server stopped');
+    this.lab.logs.log('info', 'MCP Lab MCP server stopped');
   }
 
   private async handleRequest(
@@ -157,18 +157,18 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         { readTools: true, writeTools: false, destructiveTools: false, production: false },
       );
 
-    // Everything except executeMcpTool is read-only inspection of Workbench itself.
+    // Everything except executeMcpTool is read-only inspection of McpLab itself.
     if (name !== 'executeMcpTool') {
       return true;
     }
 
     const serverName = String(args.server ?? '');
     const toolName = String(args.tool ?? '');
-    const serverId = this.workbench.resolveServerByName(serverName);
-    const connection = serverId ? this.workbench.manager.get(serverId) : undefined;
+    const serverId = this.lab.resolveServerByName(serverName);
+    const connection = serverId ? this.lab.manager.get(serverId) : undefined;
     const definition = connection?.catalog.tools.find((t) => t.name === toolName);
     const risk = definition ? classifyTool(definition) : 'write';
-    const tier = this.workbench.activeEnvironment?.tier;
+    const tier = this.lab.activeEnvironment?.tier;
 
     if (risk === 'read' && policy.readTools && !(tier === 'prod' && !policy.production)) {
       return true;
@@ -195,7 +195,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         modal: true,
         detail: [
           `Classification: ${risk}`,
-          `Environment: ${this.workbench.activeEnvironment?.name ?? 'none'}`,
+          `Environment: ${this.lab.activeEnvironment?.name ?? 'none'}`,
           '',
           'Arguments:',
           JSON.stringify(args.arguments ?? {}, null, 2).slice(0, 800),
@@ -229,7 +229,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         inputSchema: { type: 'object', properties: {} },
         annotations: { readOnlyHint: true },
       },
-      handler: () => jsonResult(this.workbench.catalog()),
+      handler: () => jsonResult(this.lab.catalog()),
     });
 
     this.role.register({
@@ -246,7 +246,7 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         },
         annotations: { readOnlyHint: true },
       },
-      handler: (args) => jsonResult(this.workbench.search(String(args.query ?? ''))),
+      handler: (args) => jsonResult(this.lab.search(String(args.query ?? ''))),
     });
 
     this.role.register({
@@ -315,11 +315,11 @@ export class WorkbenchMcpServer implements vscode.Disposable {
       },
       handler: async (args) => {
         const connection = this.requireConnection(String(args.server));
-        const result = await this.workbench.execution.callTool(
+        const result = await this.lab.execution.callTool(
           connection.id,
           String(args.tool),
           args.arguments ?? {},
-          { environment: this.workbench.activeEnvironment?.name },
+          { environment: this.lab.activeEnvironment?.name },
         );
         if (result.error) {
           return {
@@ -345,9 +345,9 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         annotations: { readOnlyHint: true },
       },
       handler: (args) => {
-        const serverId = args.server ? this.workbench.resolveServerByName(String(args.server)) : undefined;
+        const serverId = args.server ? this.lab.resolveServerByName(String(args.server)) : undefined;
         const limit = Number(args.limit ?? 100);
-        const lines = this.workbench.logs
+        const lines = this.lab.logs
           .query({ serverId })
           .slice(-limit)
           .map((entry) => `${new Date(entry.timestamp).toISOString()} ${entry.level} ${entry.message}`);
@@ -370,8 +370,8 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         const connection = this.requireConnection(String(args.server));
         const report = await diagnose(connection, {
           probe: true,
-          testedTargets: this.workbench.tests.list().length
-            ? this.workbench.tests.testedTargets()
+          testedTargets: this.lab.tests.list().length
+            ? this.lab.tests.testedTargets()
             : undefined,
         });
         return jsonResult(report);
@@ -436,8 +436,8 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         annotations: { readOnlyHint: true },
       },
       handler: async (args) => {
-        const runner = new TestRunner(this.workbench.execution);
-        const suites = this.workbench.tests.list();
+        const runner = new TestRunner(this.lab.execution);
+        const suites = this.lab.tests.list();
         if (suites.length === 0) {
           return textResult('No test suites were found in this workspace.');
         }
@@ -445,8 +445,8 @@ export class WorkbenchMcpServer implements vscode.Disposable {
         const results = [];
         for (const suite of suites) {
           const serverId = args.server
-            ? this.workbench.resolveServerByName(String(args.server))
-            : await this.workbench.resolveTestServer(suite, suite.tests[0] ?? { name: '' });
+            ? this.lab.resolveServerByName(String(args.server))
+            : await this.lab.resolveTestServer(suite, suite.tests[0] ?? { name: '' });
           if (!serverId) {
             continue;
           }
@@ -467,10 +467,10 @@ export class WorkbenchMcpServer implements vscode.Disposable {
   }
 
   private requireConnection(name: string) {
-    const serverId = this.workbench.resolveServerByName(name);
-    const connection = serverId ? this.workbench.manager.get(serverId) : undefined;
+    const serverId = this.lab.resolveServerByName(name);
+    const connection = serverId ? this.lab.manager.get(serverId) : undefined;
     if (!connection) {
-      const known = this.workbench.manager
+      const known = this.lab.manager
         .list()
         .map((entry) => entry.config.name)
         .join(', ');

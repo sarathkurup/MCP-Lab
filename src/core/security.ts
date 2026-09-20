@@ -6,7 +6,7 @@ import type { LogEntry } from './logging';
 import type { JsonSchema, Prompt, Resource, Tool } from './protocol';
 
 /**
- * Security review of a server as Workbench can actually observe it: the
+ * Security review of a server as McpLab can actually observe it: the
  * configuration, the advertised catalog, and what has already flowed through
  * the logs and history in this session.
  *

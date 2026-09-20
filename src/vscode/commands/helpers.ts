@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { describeTarget } from '../../core/config';
 import type { TreeNode } from '../ui/ServersTreeProvider';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 /**
  * Resolves the server a command should act on: the tree node it was invoked
  * from, the only configured server, or a quick pick.
  */
 export async function resolveServerId(
-  workbench: Workbench,
+  lab: McpLab,
   node: TreeNode | undefined,
   placeHolder: string,
 ): Promise<string | undefined> {
@@ -16,7 +16,7 @@ export async function resolveServerId(
     return node.serverId;
   }
 
-  const connections = workbench.manager.list();
+  const connections = lab.manager.list();
   if (connections.length === 0) {
     throw new Error('No servers configured yet. Run "MCP: Add Server" first.');
   }

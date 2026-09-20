@@ -76,32 +76,28 @@ describe('identity', () => {
     }
   });
 
-  it('has no trace of the old name anywhere', () => {
-    const stale = SOURCES.filter((entry) => /mcpWorkbench|MCP Workbench|mcp-workbench/.test(entry.text));
-    assert.deepEqual(stale.map((entry) => entry.file), [], 'sources still mention the old name');
+  it('carries no trace of a name the extension used to have', () => {
+    // Renamed twice: MCP Workbench -> MCPilot -> MCP Lab. Each rename left
+    // something behind that the next one had to find - a class and its files,
+    // a stylesheet name, a log source the Logs view actually displayed, a
+    // copyright line. So this bans every former name outright rather than
+    // listing the places they last hid in.
+    //
+    // It also replaces two earlier checks that a bulk rename silently rewrote
+    // into nonsense: their patterns had been edited to match the *current*
+    // name, so they passed while testing nothing.
+    const FORMER = /workbench|mcpilot/i;
 
-    const manifestText = readFileSync(path.join(ROOT, 'package.json'), 'utf8');
-    assert.doesNotMatch(manifestText, /mcpWorkbench|MCP Workbench|mcp-workbench/);
-  });
+    const stale = SOURCES.filter((entry) => FORMER.test(entry.text)).map((entry) => entry.file);
+    assert.deepEqual(stale, [], 'sources still mention a former name');
 
-  it('never puts the old product name in front of a user', () => {
-    // The internal class is still called Workbench, and its comments still say
-    // so. What matters is that no command title, setting description or UI
-    // string shows a user a name the extension no longer goes by.
-    assert.doesNotMatch(JSON.stringify(manifest.contributes), /Workbench/);
-
-    const offenders = SOURCES.flatMap((entry) =>
-      entry.text
-        .split('\n')
-        .map((line, index) => ({ line, at: `${entry.file}:${index + 1}` }))
-        // Quoted text only: comments are for developers, and import paths
-        // legitimately point at Workbench.ts.
-        .filter(({ line }) => !/^\s*(\/\/|\/?\*)/.test(line))
-        .filter(({ line }) => !/\bfrom\s+'/.test(line))
-        .filter(({ line }) => /(['`])[^'`]*\bWorkbench\b[^'`]*\1/.test(line))
-        .map(({ at }) => at),
-    );
-    assert.deepEqual(offenders, [], 'UI strings still say Workbench');
+    for (const file of ['package.json', 'README.md', 'LICENSE', '.vscodeignore', 'install.cmd']) {
+      assert.doesNotMatch(
+        readFileSync(path.join(ROOT, file), 'utf8'),
+        FORMER,
+        `${file} still mentions a former name`,
+      );
+    }
   });
 });
 

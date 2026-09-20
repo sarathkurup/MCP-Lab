@@ -1,24 +1,24 @@
 import * as vscode from 'vscode';
 import { generateDocs } from '../../core/docs';
 import type { TreeNode } from '../ui/ServersTreeProvider';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 import { resolveServerId } from './helpers';
 
 /** Documentation, security and comparison reports. */
 
 export async function generateDocumentation(
-  workbench: Workbench,
+  lab: McpLab,
   arg?: TreeNode | { serverId: string },
 ): Promise<void> {
   const node = arg as TreeNode | undefined;
   const serverId =
     (arg as { serverId?: string })?.serverId ??
-    (await resolveServerId(workbench, node, 'Document which server?'));
+    (await resolveServerId(lab, node, 'Document which server?'));
   if (!serverId) {
     return;
   }
 
-  const connection = workbench.manager.get(serverId);
+  const connection = lab.manager.get(serverId);
   if (!connection || connection.status !== 'connected') {
     throw new Error('Connect the server first: documentation is generated from the live catalog.');
   }
@@ -71,16 +71,16 @@ export async function generateDocumentation(
   void vscode.window.showInformationMessage(`Wrote ${vscode.workspace.asRelativePath(target)}`);
 }
 
-export async function securityScan(workbench: Workbench, node?: TreeNode): Promise<void> {
-  const serverId = await resolveServerId(workbench, node, 'Scan which server?');
+export async function securityScan(lab: McpLab, node?: TreeNode): Promise<void> {
+  const serverId = await resolveServerId(lab, node, 'Scan which server?');
   if (!serverId) {
     return;
   }
-  workbench.focus({ serverId, view: 'security' });
+  lab.focus({ serverId, view: 'security' });
 }
 
-export async function compareServersCommand(workbench: Workbench): Promise<void> {
-  const servers = workbench.manager.list();
+export async function compareServersCommand(lab: McpLab): Promise<void> {
+  const servers = lab.manager.list();
   if (servers.length < 2) {
     throw new Error('Comparison needs two configured servers.');
   }
@@ -103,9 +103,9 @@ export async function compareServersCommand(workbench: Workbench): Promise<void>
     return;
   }
 
-  workbench.focus({ view: 'compare' });
+  lab.focus({ view: 'compare' });
   // The view reads its own selection, so seed it and let it run the comparison.
-  workbench.panel.emit('compare-target', { leftId: left.value, rightId: right.value });
+  lab.panel.emit('compare-target', { leftId: left.value, rightId: right.value });
 }
 
 function slug(name: string): string {

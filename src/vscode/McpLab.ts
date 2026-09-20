@@ -10,19 +10,19 @@ import { LogStore } from '../core/logging';
 import { Recorder } from '../core/recording';
 import type { TestCase, TestSuite } from '../core/testing';
 import { TraceStore } from '../core/trace';
-import type { ServerDetail, ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
+import type { ServerDetail, ServerSummary, McpLabSnapshot } from '../shared/viewModels';
 import { AiService } from './services/AiService';
 import { LintDiagnostics } from './services/LintDiagnostics';
 import { McpTestController } from './services/McpTestController';
 import { OAuthService } from './services/OAuthService';
 import { OutputChannels } from './services/OutputChannels';
 import { TestRepository } from './services/TestRepository';
-import { WorkbenchMcpServer } from './services/WorkbenchMcpServer';
+import { BridgeServer } from './services/BridgeServer';
 import { WorkflowRepository } from './services/WorkflowRepository';
 import { EnvironmentStore } from './storage/EnvironmentStore';
 import { ServerStore } from './storage/ServerStore';
 import { ServersTreeProvider } from './ui/ServersTreeProvider';
-import { WorkbenchPanel } from './ui/WorkbenchPanel';
+import { McpLabPanel } from './ui/McpLabPanel';
 
 const HISTORY_KEY = 'mcplab.history.v1';
 
@@ -30,7 +30,7 @@ const HISTORY_KEY = 'mcplab.history.v1';
  * Composition root. Owns every long-lived service and is the only place that
  * knows how the core engine, the VS Code UI and the webview fit together.
  */
-export class Workbench implements vscode.Disposable {
+export class McpLab implements vscode.Disposable {
   readonly logs = new LogStore();
   readonly trace: TraceStore;
   readonly history: HistoryStore;
@@ -39,13 +39,13 @@ export class Workbench implements vscode.Disposable {
   readonly execution: ExecutionService;
   readonly channels: OutputChannels;
   readonly tree: ServersTreeProvider;
-  readonly panel: WorkbenchPanel;
+  readonly panel: McpLabPanel;
   readonly environments: EnvironmentStore;
   readonly tests: TestRepository;
   readonly lintDiagnostics = new LintDiagnostics();
   readonly ai = new AiService();
   readonly workflows = new WorkflowRepository();
-  readonly bridge: WorkbenchMcpServer;
+  readonly bridge: BridgeServer;
   readonly recorder: Recorder;
   readonly oauth: OAuthService;
   private testController?: McpTestController;
@@ -79,10 +79,10 @@ export class Workbench implements vscode.Disposable {
 
     this.execution = new ExecutionService(this.manager, this.history);
     this.recorder = new Recorder(this.execution);
-    this.bridge = new WorkbenchMcpServer(this);
+    this.bridge = new BridgeServer(this);
     this.channels = new OutputChannels(this.logs, this.trace);
     this.tree = new ServersTreeProvider(this.manager);
-    this.panel = WorkbenchPanel.register(context);
+    this.panel = McpLabPanel.register(context);
 
     this.wireEvents();
   }
@@ -146,7 +146,7 @@ export class Workbench implements vscode.Disposable {
     return this.environments.active;
   }
 
-  snapshot(): WorkbenchSnapshot {
+  snapshot(): McpLabSnapshot {
     return {
       servers: this.manager.list().map((connection) => this.summarize(connection.id)!),
       environments: this.environments.list().map((environment) => ({

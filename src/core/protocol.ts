@@ -1,12 +1,12 @@
 /**
  * MCP wire protocol: JSON-RPC 2.0 envelopes and the subset of MCP schema types
- * Workbench needs. Deliberately hand-rolled rather than taken from the SDK so
+ * McpLab needs. Deliberately hand-rolled rather than taken from the SDK so
  * that every frame on the wire is observable for the protocol trace.
  */
 
 export const LATEST_PROTOCOL_VERSION = '2025-06-18';
 
-/** Protocol revisions Workbench knows how to speak, newest first. */
+/** Protocol revisions McpLab knows how to speak, newest first. */
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 
 export type JsonRpcId = string | number;
@@ -51,9 +51,9 @@ export const ErrorCode = {
   MethodNotFound: -32601,
   InvalidParams: -32602,
   InternalError: -32603,
-  /** Workbench-local: the request never reached a response. */
+  /** McpLab-local: the request never reached a response. */
   RequestTimeout: -32001,
-  /** Workbench-local: the connection dropped while the request was in flight. */
+  /** McpLab-local: the connection dropped while the request was in flight. */
   ConnectionClosed: -32002,
 } as const;
 

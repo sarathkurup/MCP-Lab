@@ -2,12 +2,12 @@ import * as vscode from 'vscode';
 import { RpcRouter, type RpcRequest } from '../../shared/rpc';
 
 /**
- * Hosts the Workbench webview. Knows nothing about MCP: it owns the panel
+ * Hosts the McpLab webview. Knows nothing about MCP: it owns the panel
  * lifecycle, the CSP-locked HTML shell, and the message pump. Every capability
  * arrives as an RPC method registered by the composition root.
  */
-export class WorkbenchPanel implements vscode.Disposable {
-  private static current?: WorkbenchPanel;
+export class McpLabPanel implements vscode.Disposable {
+  private static current?: McpLabPanel;
 
   readonly router = new RpcRouter();
   private panel?: vscode.WebviewPanel;
@@ -15,11 +15,11 @@ export class WorkbenchPanel implements vscode.Disposable {
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
-  static register(context: vscode.ExtensionContext): WorkbenchPanel {
-    if (!WorkbenchPanel.current) {
-      WorkbenchPanel.current = new WorkbenchPanel(context);
+  static register(context: vscode.ExtensionContext): McpLabPanel {
+    if (!McpLabPanel.current) {
+      McpLabPanel.current = new McpLabPanel(context);
     }
-    return WorkbenchPanel.current;
+    return McpLabPanel.current;
   }
 
   get isOpen(): boolean {
@@ -75,7 +75,7 @@ export class WorkbenchPanel implements vscode.Disposable {
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.js'),
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'workbench.css'),
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mcplab.css'),
     );
 
     // Scripts are nonce-locked and images are limited to the extension plus data

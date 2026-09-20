@@ -2,7 +2,7 @@
 /**
  * Demo CMS server.
  *
- * Deliberately imperfect, so Workbench's doctor, linter and security scan have
+ * Deliberately imperfect, so McpLab's doctor, linter and security scan have
  * something real to find:
  *   - deleteEvent is destructive but carries no destructiveHint   (MCP004 / SEC012)
  *   - updateEvent has an undocumented parameter and no output schema (MCP008 / MCP006)

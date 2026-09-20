@@ -1,22 +1,22 @@
 import * as vscode from 'vscode';
 import { classifyTool } from '../../core/environments';
 import { localAnalysis } from './AiService';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 /**
  * `@mcp` in the Chat view.
  *
- * The participant's job is to put Workbench's own facts in front of the model -
+ * The participant's job is to put McpLab's own facts in front of the model -
  * the live catalog, the last failure, the logs - rather than to be a general
- * chatbot. Every answer is grounded in something Workbench observed.
+ * chatbot. Every answer is grounded in something McpLab observed.
  */
 export function registerChatParticipant(
   context: vscode.ExtensionContext,
-  workbench: Workbench,
+  lab: McpLab,
 ): void {
   // vscode.chat is not present in every host, so its absence is not an error.
   if (typeof vscode.chat?.createChatParticipant !== 'function') {
-    workbench.logs.log('debug', 'Chat API unavailable; @mcp participant not registered');
+    lab.logs.log('debug', 'Chat API unavailable; @mcp participant not registered');
     return;
   }
 
@@ -25,17 +25,17 @@ export function registerChatParticipant(
     async (request, _chatContext, stream, token) => {
       switch (request.command) {
         case 'find':
-          return handleFind(workbench, request, stream);
+          return handleFind(lab, request, stream);
         case 'explain':
-          return handleExplain(workbench, request, stream, token);
+          return handleExplain(lab, request, stream, token);
         case 'tests':
-          return handleTests(workbench, request, stream);
+          return handleTests(lab, request, stream);
         case 'why':
-          return handleWhy(workbench, stream, token);
+          return handleWhy(lab, stream, token);
         case 'status':
-          return handleStatus(workbench, stream);
+          return handleStatus(lab, stream);
         default:
-          return handleDefault(workbench, request, stream, token);
+          return handleDefault(lab, request, stream, token);
       }
     },
   );
@@ -51,8 +51,8 @@ export function registerChatParticipant(
   context.subscriptions.push(participant);
 }
 
-function handleStatus(workbench: Workbench, stream: vscode.ChatResponseStream): void {
-  const entries = workbench.catalog();
+function handleStatus(lab: McpLab, stream: vscode.ChatResponseStream): void {
+  const entries = lab.catalog();
   if (entries.length === 0) {
     stream.markdown('No MCP servers are configured yet.');
     return;
@@ -65,14 +65,14 @@ function handleStatus(workbench: Workbench, stream: vscode.ChatResponseStream): 
     );
   }
 
-  const environment = workbench.activeEnvironment;
+  const environment = lab.activeEnvironment;
   if (environment) {
     stream.markdown(`\nActive environment: **${environment.name}** (${environment.tier}).\n`);
   }
 }
 
 function handleFind(
-  workbench: Workbench,
+  lab: McpLab,
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
 ): void {
@@ -82,7 +82,7 @@ function handleFind(
     return;
   }
 
-  const hits = workbench.search(query).slice(0, 12);
+  const hits = lab.search(query).slice(0, 12);
   if (hits.length === 0) {
     stream.markdown(
       `Nothing matching **${query}**. Only connected servers can be searched — a disconnected one has no catalog.`,
@@ -98,13 +98,13 @@ function handleFind(
 }
 
 async function handleExplain(
-  workbench: Workbench,
+  lab: McpLab,
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   token: vscode.CancellationToken,
 ): Promise<void> {
   const name = request.prompt.trim();
-  const found = findTool(workbench, name);
+  const found = findTool(lab, name);
   if (!found) {
     stream.markdown(`I cannot find a tool called \`${name}\` on any connected server.`);
     return;
@@ -125,7 +125,7 @@ async function handleExplain(
     }
   }
 
-  const explanation = await workbench.ai.explain(
+  const explanation = await lab.ai.explain(
     [
       'In at most four sentences, explain when a developer would call this MCP tool and what to watch out for.',
       'Do not restate the parameter table.',
@@ -139,12 +139,12 @@ async function handleExplain(
 }
 
 function handleTests(
-  workbench: Workbench,
+  lab: McpLab,
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
 ): void {
   const name = request.prompt.trim();
-  const found = findTool(workbench, name);
+  const found = findTool(lab, name);
   if (!found) {
     stream.markdown(`I cannot find a tool called \`${name}\`.`);
     return;
@@ -159,11 +159,11 @@ function handleTests(
 }
 
 async function handleWhy(
-  workbench: Workbench,
+  lab: McpLab,
   stream: vscode.ChatResponseStream,
   token: vscode.CancellationToken,
 ): Promise<void> {
-  const failure = workbench.history.list().find((entry) => entry.error || entry.toolError);
+  const failure = lab.history.list().find((entry) => entry.error || entry.toolError);
   if (!failure) {
     stream.markdown('Nothing has failed in this session.');
     return;
@@ -173,14 +173,14 @@ async function handleWhy(
     `Most recent failure: \`${failure.name}\` on **${failure.serverName}**, ${new Date(failure.timestamp).toLocaleTimeString()}.\n\n`,
   );
 
-  const connection = workbench.manager.get(failure.serverId);
+  const connection = lab.manager.get(failure.serverId);
   const tool = connection?.catalog.tools.find((entry) => entry.name === failure.name);
   stream.markdown(`${localAnalysis(failure, tool)}\n\n`);
 
-  const deeper = await workbench.ai.analyzeFailure({
+  const deeper = await lab.ai.analyzeFailure({
     entry: failure,
     tool,
-    logs: workbench.logs
+    logs: lab.logs
       .query({ serverId: failure.serverId })
       .slice(-20)
       .map((line) => `${line.level}: ${line.message}`),
@@ -198,12 +198,12 @@ async function handleWhy(
 }
 
 async function handleDefault(
-  workbench: Workbench,
+  lab: McpLab,
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   token: vscode.CancellationToken,
 ): Promise<void> {
-  const hits = workbench.search(request.prompt).slice(0, 8);
+  const hits = lab.search(request.prompt).slice(0, 8);
 
   if (hits.length > 0) {
     stream.markdown('Capabilities that look relevant:\n\n');
@@ -214,13 +214,13 @@ async function handleDefault(
   }
 
   // The model sees only the catalog summary, never tool results or credentials.
-  const context = workbench.catalog().map((entry) => ({
+  const context = lab.catalog().map((entry) => ({
     server: entry.name,
     health: entry.health,
     tools: entry.counts.tools,
   }));
 
-  const answer = await workbench.ai.explain(
+  const answer = await lab.ai.explain(
     [
       'You are helping a developer work with MCP servers inside VS Code.',
       'Answer in at most six sentences. If the answer depends on a tool they have,',
@@ -241,10 +241,10 @@ async function handleDefault(
 }
 
 function findTool(
-  workbench: Workbench,
+  lab: McpLab,
   name: string,
 ): { tool: import('../../core/protocol').Tool; serverName: string; serverId: string } | undefined {
-  for (const connection of workbench.manager.list()) {
+  for (const connection of lab.manager.list()) {
     const tool = connection.catalog.tools.find(
       (entry) => entry.name.toLowerCase() === name.toLowerCase(),
     );

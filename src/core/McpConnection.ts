@@ -394,6 +394,6 @@ export class McpConnection {
   }
 
   private log(level: 'debug' | 'info' | 'warn' | 'error', message: string): void {
-    this.deps.logs.log(level, message, { serverId: this.id, source: 'workbench' });
+    this.deps.logs.log(level, message, { serverId: this.id, source: 'mcplab' });
   }
 }

@@ -1,5 +1,5 @@
 import { RpcClient, type HostMessage, type ViewMessage } from '../shared/rpc';
-import type { ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
+import type { ServerSummary, McpLabSnapshot } from '../shared/viewModels';
 import type { AppContext, AppState, ViewDefinition } from './app';
 import { clear, h } from './dom';
 import { analyticsView } from './views/analytics';
@@ -56,7 +56,7 @@ const state: AppState = {
   scratch: {},
 };
 
-let snapshot: WorkbenchSnapshot = { servers: [], environments: [] };
+let snapshot: McpLabSnapshot = { servers: [], environments: [] };
 let rendering = false;
 
 const root = document.getElementById('root')!;
@@ -71,7 +71,7 @@ const ctx: AppContext = {
   },
   refresh: () => void renderActive(),
   reload: async () => {
-    snapshot = await rpc.call<WorkbenchSnapshot>('snapshot');
+    snapshot = await rpc.call<McpLabSnapshot>('snapshot');
     reconcileSelection();
     await renderActive();
   },
@@ -97,7 +97,7 @@ function reconcileSelection(): void {
 
 function handleEvent(name: string, payload: unknown): void {
   if (name === 'servers-changed') {
-    snapshot = payload as WorkbenchSnapshot;
+    snapshot = payload as McpLabSnapshot;
     reconcileSelection();
     renderChrome();
     // The catalog can change shape underneath the explorer, so drop its cache.
@@ -314,7 +314,7 @@ function toast(message: string, kind: 'info' | 'error' = 'info'): void {
 }
 
 async function boot(): Promise<void> {
-  snapshot = await rpc.call<WorkbenchSnapshot>('snapshot');
+  snapshot = await rpc.call<McpLabSnapshot>('snapshot');
   reconcileSelection();
   renderChrome();
   await renderActive();

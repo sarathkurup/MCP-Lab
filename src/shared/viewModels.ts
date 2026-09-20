@@ -33,7 +33,7 @@ export interface ServerDetail extends ServerSummary {
   prompts: Prompt[];
 }
 
-export interface WorkbenchSnapshot {
+export interface McpLabSnapshot {
   servers: ServerSummary[];
   environments: EnvironmentSummary[];
   activeEnvironmentId?: string;

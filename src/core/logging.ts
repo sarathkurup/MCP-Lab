@@ -6,10 +6,10 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface LogEntry {
   timestamp: number;
   level: LogLevel;
-  /** Server id the line belongs to, or undefined for Workbench-wide lines. */
+  /** Server id the line belongs to, or undefined for McpLab-wide lines. */
   serverId?: string;
-  /** Where the line came from: 'workbench' | 'stderr' | 'server' (MCP logging notification). */
-  source: 'workbench' | 'stderr' | 'server';
+  /** Where the line came from: 'mcplab' | 'stderr' | 'server' (MCP logging notification). */
+  source: 'mcplab' | 'stderr' | 'server';
   message: string;
   detail?: unknown;
 }
@@ -58,7 +58,7 @@ export class LogStore {
       level,
       message,
       serverId: options.serverId,
-      source: options.source ?? 'workbench',
+      source: options.source ?? 'mcplab',
       detail: options.detail,
     });
   }

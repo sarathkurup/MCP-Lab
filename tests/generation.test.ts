@@ -74,7 +74,7 @@ describe('scaffold', () => {
     assert.match(files['Tools/ItemTools.cs'], /Destructive = true/);
   });
 
-  it('always ships a Workbench config so the CLI can reach it', () => {
+  it('always ships a McpLab config so the CLI can reach it', () => {
     for (const language of ['typescript', 'python', 'csharp'] as const) {
       const files = scaffold({ ...options, language });
       const config = JSON.parse(files['mcp.config.json']) as { servers: unknown[] };
@@ -238,7 +238,7 @@ describe('OpenAPI → MCP', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('Workbench as an MCP server', () => {
+describe('McpLab as an MCP server', () => {
   function role(options: { authorize?: () => boolean } = {}): McpServerRole {
     const server = new McpServerRole({
       name: 'mcplab',

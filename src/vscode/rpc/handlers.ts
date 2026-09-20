@@ -7,40 +7,40 @@ import { scanSecurity } from '../../core/security';
 import { TestRunner, type SuiteResult, type TestSuite } from '../../core/testing';
 import { validateWorkflow, WorkflowRunner } from '../../core/workflows';
 import type { ExecutionView } from '../../shared/viewModels';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 /**
  * Every capability the webview can invoke. Each phase adds methods here rather
  * than inventing new message plumbing.
  */
-export function registerRpcHandlers(workbench: Workbench): void {
-  const { router } = workbench.panel;
+export function registerRpcHandlers(lab: McpLab): void {
+  const { router } = lab.panel;
 
   // -- snapshot & catalog ----------------------------------------------------
 
-  router.on('snapshot', () => workbench.snapshot());
+  router.on('snapshot', () => lab.snapshot());
 
   router.on('serverDetail', (params) => {
     const { serverId } = params as { serverId: string };
-    return workbench.detail(serverId);
+    return lab.detail(serverId);
   });
 
   router.on('connect', async (params) => {
     const { serverId } = params as { serverId: string };
-    await workbench.manager.connect(serverId);
-    return workbench.summarize(serverId);
+    await lab.manager.connect(serverId);
+    return lab.summarize(serverId);
   });
 
   router.on('disconnect', async (params) => {
     const { serverId } = params as { serverId: string };
-    await workbench.manager.disconnect(serverId);
-    return workbench.summarize(serverId);
+    await lab.manager.disconnect(serverId);
+    return lab.summarize(serverId);
   });
 
   router.on('refreshCatalog', async (params) => {
     const { serverId } = params as { serverId: string };
-    await workbench.manager.get(serverId)?.refreshCatalog();
-    return workbench.detail(serverId);
+    await lab.manager.get(serverId)?.refreshCatalog();
+    return lab.detail(serverId);
   });
 
   // -- execution -------------------------------------------------------------
@@ -53,13 +53,13 @@ export function registerRpcHandlers(workbench: Workbench): void {
       skipValidation?: boolean;
     };
 
-    const guarded = await confirmIfRisky(workbench, serverId, name);
+    const guarded = await confirmIfRisky(lab, serverId, name);
     if (!guarded) {
       throw new Error('Cancelled.');
     }
 
     try {
-      const result = await workbench.execution.callTool(serverId, name, args, {
+      const result = await lab.execution.callTool(serverId, name, args, {
         skipValidation,
       });
       return toView(result);
@@ -73,7 +73,7 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('readResource', async (params) => {
     const { serverId, uri } = params as { serverId: string; uri: string };
-    return toView(await workbench.execution.readResource(serverId, uri));
+    return toView(await lab.execution.readResource(serverId, uri));
   });
 
   router.on('getPrompt', async (params) => {
@@ -82,30 +82,30 @@ export function registerRpcHandlers(workbench: Workbench): void {
       name: string;
       args: Record<string, string>;
     };
-    return toView(await workbench.execution.getPrompt(serverId, name, args));
+    return toView(await lab.execution.getPrompt(serverId, name, args));
   });
 
   router.on('replay', async (params) => {
     const { historyId } = params as { historyId: string };
-    return toView(await workbench.execution.replay(historyId));
+    return toView(await lab.execution.replay(historyId));
   });
 
   // -- history ---------------------------------------------------------------
 
   router.on('history', (params) => {
     const { serverId, search } = (params ?? {}) as { serverId?: string; search?: string };
-    return workbench.history.list({ serverId, search });
+    return lab.history.list({ serverId, search });
   });
 
   router.on('clearHistory', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    workbench.history.clear(serverId);
+    lab.history.clear(serverId);
     return true;
   });
 
   router.on('saveResponse', async (params) => {
     const { historyId } = params as { historyId: string };
-    const entry = workbench.history.get(historyId);
+    const entry = lab.history.get(historyId);
     if (!entry) {
       throw new Error('That invocation is no longer in history.');
     }
@@ -127,23 +127,23 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('trace', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    return workbench.trace.list(serverId);
+    return lab.trace.list(serverId);
   });
 
   router.on('clearTrace', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    workbench.trace.clear(serverId);
+    lab.trace.clear(serverId);
     return true;
   });
 
   router.on('logs', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    return workbench.logs.query({ serverId });
+    return lab.logs.query({ serverId });
   });
 
   router.on('clearLogs', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    workbench.logs.clear(serverId);
+    lab.logs.clear(serverId);
     return true;
   });
 
@@ -151,21 +151,21 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('analytics', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    return workbench.history.stats(serverId);
+    return lab.history.stats(serverId);
   });
 
   // -- environments ----------------------------------------------------------
 
   router.on('setEnvironment', async (params) => {
     const { id } = params as { id: string };
-    await workbench.setEnvironment(id);
-    return workbench.snapshot();
+    await lab.setEnvironment(id);
+    return lab.snapshot();
   });
 
   // -- tests -----------------------------------------------------------------
 
   router.on('tests', async () => {
-    const suites = await workbench.tests.discover();
+    const suites = await lab.tests.discover();
     return suites;
   });
 
@@ -174,20 +174,20 @@ export function registerRpcHandlers(workbench: Workbench): void {
       serverId?: string;
       sourceUri?: string;
     };
-    const runner = new TestRunner(workbench.execution);
+    const runner = new TestRunner(lab.execution);
     const suites: TestSuite[] = sourceUri
-      ? [workbench.tests.get(sourceUri)].filter((s): s is TestSuite => !!s)
-      : workbench.tests.list();
+      ? [lab.tests.get(sourceUri)].filter((s): s is TestSuite => !!s)
+      : lab.tests.list();
 
     const results: SuiteResult[] = [];
     for (const suite of suites) {
-      const target = serverId ?? (await workbench.resolveTestServer(suite, suite.tests[0] ?? { name: '' }));
+      const target = serverId ?? (await lab.resolveTestServer(suite, suite.tests[0] ?? { name: '' }));
       if (!target) {
         continue;
       }
       results.push(
         await runner.runSuite(suite, target, {
-          onResult: (result) => workbench.panel.emit('test-result', result),
+          onResult: (result) => lab.panel.emit('test-result', result),
         }),
       );
     }
@@ -211,20 +211,20 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('diagnose', async (params) => {
     const { serverId, probe } = params as { serverId: string; probe?: boolean };
-    const connection = workbench.manager.get(serverId);
+    const connection = lab.manager.get(serverId);
     if (!connection) {
       throw new Error(`Unknown server "${serverId}"`);
     }
     return diagnose(connection, {
       probe,
-      testedTargets: workbench.tests.list().length ? workbench.tests.testedTargets() : undefined,
-      hasCredential: !!(await workbench.store.getAuthToken(serverId)),
+      testedTargets: lab.tests.list().length ? lab.tests.testedTargets() : undefined,
+      hasCredential: !!(await lab.store.getAuthToken(serverId)),
     });
   });
 
   router.on('lint', async (params) => {
     const { serverId, publish } = params as { serverId: string; publish?: boolean };
-    const connection = workbench.manager.get(serverId);
+    const connection = lab.manager.get(serverId);
     if (!connection) {
       throw new Error(`Unknown server "${serverId}"`);
     }
@@ -232,10 +232,10 @@ export function registerRpcHandlers(workbench: Workbench): void {
       tools: connection.catalog.tools,
       resources: connection.catalog.resources,
       prompts: connection.catalog.prompts,
-      testedTargets: workbench.tests.list().length ? workbench.tests.testedTargets() : undefined,
+      testedTargets: lab.tests.list().length ? lab.tests.testedTargets() : undefined,
     });
     if (publish) {
-      const anchored = await workbench.lintDiagnostics.publish(findings, connection.config.name);
+      const anchored = await lab.lintDiagnostics.publish(findings, connection.config.name);
       return { findings, anchored };
     }
     return { findings, anchored: 0 };
@@ -251,7 +251,7 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('securityScan', async (params) => {
     const { serverId } = params as { serverId: string };
-    const connection = workbench.manager.get(serverId);
+    const connection = lab.manager.get(serverId);
     if (!connection) {
       throw new Error(`Unknown server "${serverId}"`);
     }
@@ -260,10 +260,10 @@ export function registerRpcHandlers(workbench: Workbench): void {
       tools: connection.catalog.tools,
       resources: connection.catalog.resources,
       prompts: connection.catalog.prompts,
-      logs: workbench.logs.query({ serverId }),
-      history: workbench.history.list({ serverId }),
-      hasStoredCredential: !!(await workbench.store.getAuthToken(serverId)),
-      environmentTier: workbench.activeEnvironment?.tier,
+      logs: lab.logs.query({ serverId }),
+      history: lab.history.list({ serverId }),
+      hasStoredCredential: !!(await lab.store.getAuthToken(serverId)),
+      environmentTier: lab.activeEnvironment?.tier,
     });
   });
 
@@ -271,7 +271,7 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   router.on('compare', async (params) => {
     const { leftId, rightId } = params as { leftId: string; rightId: string };
-    return workbench.compare(leftId, rightId);
+    return lab.compare(leftId, rightId);
   });
 
   // -- documentation ---------------------------------------------------------
@@ -284,11 +284,11 @@ export function registerRpcHandlers(workbench: Workbench): void {
 
   // -- catalog & search ------------------------------------------------------
 
-  router.on('catalog', () => workbench.catalog());
+  router.on('catalog', () => lab.catalog());
 
   router.on('search', (params) => {
     const { query } = params as { query: string };
-    return workbench.search(query);
+    return lab.search(query);
   });
 
   router.on('openExternal', async (params) => {
@@ -301,13 +301,13 @@ export function registerRpcHandlers(workbench: Workbench): void {
   // -- workflows -------------------------------------------------------------
 
   router.on('workflows', async () => {
-    await workbench.workflows.discover();
-    return workbench.workflows.list();
+    await lab.workflows.discover();
+    return lab.workflows.list();
   });
 
   router.on('runWorkflow', async (params) => {
     const { workflowId, serverId } = params as { workflowId: string; serverId?: string };
-    const workflow = workbench.workflows.get(workflowId);
+    const workflow = lab.workflows.get(workflowId);
     if (!workflow) {
       throw new Error(`Unknown workflow "${workflowId}"`);
     }
@@ -318,25 +318,25 @@ export function registerRpcHandlers(workbench: Workbench): void {
     }
 
     // Every tool a workflow touches goes through the same risk gate as a manual call.
-    const fallbackId = serverId ?? workbench.manager.list().find((c) => c.status === 'connected')?.id;
+    const fallbackId = serverId ?? lab.manager.list().find((c) => c.status === 'connected')?.id;
     for (const step of workflow.steps) {
       if (step.kind !== 'tool' || !step.tool) {
         continue;
       }
-      const target = workbench.resolveServerByName(step.server ?? workflow.server) ?? fallbackId;
-      if (target && !(await confirmIfRisky(workbench, target, step.tool))) {
+      const target = lab.resolveServerByName(step.server ?? workflow.server) ?? fallbackId;
+      if (target && !(await confirmIfRisky(lab, target, step.tool))) {
         throw new Error('Cancelled.');
       }
     }
 
-    const runner = new WorkflowRunner(workbench.execution, (name) =>
-      workbench.resolveServerByName(name) ?? fallbackId,
+    const runner = new WorkflowRunner(lab.execution, (name) =>
+      lab.resolveServerByName(name) ?? fallbackId,
     );
     const subscription = runner.onDidCompleteStep((step) =>
-      workbench.panel.emit('workflow-step', step),
+      lab.panel.emit('workflow-step', step),
     );
     try {
-      return await runner.run(workflow, { environment: workbench.activeEnvironment?.name });
+      return await runner.run(workflow, { environment: lab.activeEnvironment?.name });
     } finally {
       subscription.dispose();
     }
@@ -345,29 +345,29 @@ export function registerRpcHandlers(workbench: Workbench): void {
   // -- recording -------------------------------------------------------------
 
   router.on('recordingState', () => ({
-    recording: workbench.recorder.isRecording,
-    entries: workbench.recorder.recorded,
+    recording: lab.recorder.isRecording,
+    entries: lab.recorder.recorded,
   }));
 
   router.on('startRecording', (params) => {
     const { serverId } = (params ?? {}) as { serverId?: string };
-    workbench.recorder.start(serverId ? { serverId } : undefined);
+    lab.recorder.start(serverId ? { serverId } : undefined);
     return true;
   });
 
   router.on('stopRecording', () => {
-    workbench.recorder.stop();
-    return workbench.recorder.recorded;
+    lab.recorder.stop();
+    return lab.recorder.recorded;
   });
 
   router.on('dropRecorded', (params) => {
     const { id } = params as { id: string };
-    workbench.recorder.remove(id);
-    return workbench.recorder.recorded;
+    lab.recorder.remove(id);
+    return lab.recorder.recorded;
   });
 
   router.on('replayRecording', async () => {
-    const replayed = await workbench.recorder.replayAll();
+    const replayed = await lab.recorder.replayAll();
     return replayed.length;
   });
 
@@ -380,8 +380,8 @@ export function registerRpcHandlers(workbench: Workbench): void {
     if (!name) {
       return false;
     }
-    const workflow = workbench.recorder.toWorkflow(name);
-    const uri = await workbench.workflows.save(workflow);
+    const workflow = lab.recorder.toWorkflow(name);
+    const uri = await lab.workflows.save(workflow);
     const open = await vscode.window.showInformationMessage(
       `Saved ${vscode.workspace.asRelativePath(uri)} with ${workflow.steps.length} step(s).`,
       'Open',
@@ -393,11 +393,11 @@ export function registerRpcHandlers(workbench: Workbench): void {
   });
 
   router.on('saveRecordingAsTests', async () => {
-    const tests = workbench.recorder.toTests();
+    const tests = lab.recorder.toTests();
     if (tests.length === 0) {
       throw new Error('Nothing was recorded.');
     }
-    const uri = await workbench.tests.append('recorded', tests);
+    const uri = await lab.tests.append('recorded', tests);
     void vscode.window.showInformationMessage(
       `Saved ${tests.length} test(s) to ${vscode.workspace.asRelativePath(uri)}.`,
     );
@@ -429,17 +429,17 @@ function toView(result: { entry: ExecutionView['entry']; error?: unknown }): Exe
  * are stopped even when the tool carries no annotations at all.
  */
 export async function confirmIfRisky(
-  workbench: Workbench,
+  lab: McpLab,
   serverId: string,
   toolName: string,
 ): Promise<boolean> {
-  const connection = workbench.manager.get(serverId);
+  const connection = lab.manager.get(serverId);
   const tool = connection?.catalog.tools.find((t) => t.name === toolName);
   if (!tool) {
     return true;
   }
 
-  const environment = workbench.activeEnvironment;
+  const environment = lab.activeEnvironment;
   const risk = classifyTool(tool);
   const decision = guard(risk, environment?.tier);
   if (!decision.confirm) {

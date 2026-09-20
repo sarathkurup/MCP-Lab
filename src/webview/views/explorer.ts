@@ -386,7 +386,7 @@ function renderToolDetail(ctx: AppContext, store: ExplorerScratch, tool: Tool): 
           args = form.getValue();
         }
 
-        // Client-side validation first, so a bad request never leaves Workbench
+        // Client-side validation first, so a bad request never leaves McpLab
         // unless the user explicitly chose raw JSON mode.
         if (store.mode === 'form') {
           const errors = validateValue(spec, args);

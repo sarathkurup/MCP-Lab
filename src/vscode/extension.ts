@@ -2,36 +2,36 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { registerRpcHandlers } from './rpc/handlers';
 import { registerChatParticipant } from './services/ChatParticipant';
-import { Workbench } from './Workbench';
+import { McpLab } from './McpLab';
 
-let workbench: Workbench | undefined;
+let lab: McpLab | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  workbench = new Workbench(context);
-  registerRpcHandlers(workbench);
-  registerCommands(context, workbench);
-  registerChatParticipant(context, workbench);
+  lab = new McpLab(context);
+  registerRpcHandlers(lab);
+  registerCommands(context, lab);
+  registerChatParticipant(context, lab);
 
   const treeView = vscode.window.createTreeView('mcplab.servers', {
-    treeDataProvider: workbench.tree,
+    treeDataProvider: lab.tree,
     showCollapseAll: true,
   });
 
-  context.subscriptions.push(treeView, workbench);
+  context.subscriptions.push(treeView, lab);
 
-  await workbench.reloadServers();
-  workbench.logs.log(
+  await lab.reloadServers();
+  lab.logs.log(
     'info',
-    `MCP Lab activated with ${workbench.manager.list().length} server(s)`,
+    `MCP Lab activated with ${lab.manager.list().length} server(s)`,
   );
 
   // Auto-connect and workspace test discovery both run detached: neither a slow
   // server nor a large workspace should hold up activation.
-  void workbench.manager.connectAutoStart();
-  void workbench.startTesting();
+  void lab.manager.connectAutoStart();
+  void lab.startTesting();
 }
 
 export async function deactivate(): Promise<void> {
-  workbench?.dispose();
-  workbench = undefined;
+  lab?.dispose();
+  lab = undefined;
 }

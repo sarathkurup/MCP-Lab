@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { TestRunner, type TestCase, type TestSuite } from '../../core/testing';
-import type { Workbench } from '../Workbench';
+import type { McpLab } from '../McpLab';
 
 /**
  * Surfaces MCP suites in VS Code's own Test Explorer, so running them feels
@@ -12,11 +12,11 @@ export class McpTestController implements vscode.Disposable {
   private readonly suiteOf = new WeakMap<vscode.TestItem, TestSuite>();
   private readonly disposables: vscode.Disposable[] = [];
 
-  constructor(private readonly workbench: Workbench) {
+  constructor(private readonly lab: McpLab) {
     this.controller = vscode.tests.createTestController('mcplab', 'MCP Tests');
 
     this.controller.resolveHandler = async () => {
-      await this.workbench.tests.discover();
+      await this.lab.tests.discover();
       this.rebuild();
     };
 
@@ -28,14 +28,14 @@ export class McpTestController implements vscode.Disposable {
     );
 
     this.disposables.push(
-      this.workbench.tests.onDidChange(() => this.rebuild()),
+      this.lab.tests.onDidChange(() => this.rebuild()),
       this.controller,
     );
   }
 
   rebuild(): void {
     this.controller.items.replace(
-      this.workbench.tests.list().map((suite) => this.buildSuiteItem(suite)),
+      this.lab.tests.list().map((suite) => this.buildSuiteItem(suite)),
     );
   }
 
@@ -65,7 +65,7 @@ export class McpTestController implements vscode.Disposable {
     token: vscode.CancellationToken,
   ): Promise<void> {
     const run = this.controller.createTestRun(request);
-    const runner = new TestRunner(this.workbench.execution);
+    const runner = new TestRunner(this.lab.execution);
 
     const queue: vscode.TestItem[] = [];
     if (request.include) {
@@ -95,7 +95,7 @@ export class McpTestController implements vscode.Disposable {
         continue;
       }
 
-      const serverId = await this.workbench.resolveTestServer(suite, test);
+      const serverId = await this.lab.resolveTestServer(suite, test);
       if (!serverId) {
         run.errored(
           item,

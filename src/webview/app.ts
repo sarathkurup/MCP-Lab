@@ -1,5 +1,5 @@
 import type { RpcClient } from '../shared/rpc';
-import type { ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
+import type { ServerSummary, McpLabSnapshot } from '../shared/viewModels';
 
 export interface ViewDefinition {
   id: string;
@@ -23,7 +23,7 @@ export interface AppState {
 export interface AppContext {
   rpc: RpcClient;
   state: AppState;
-  snapshot: WorkbenchSnapshot;
+  snapshot: McpLabSnapshot;
   /** Re-renders the active view. */
   refresh(): void;
   /** Re-reads the snapshot from the extension, then re-renders. */
