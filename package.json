@@ -188,6 +188,34 @@
         "title": "Compare Servers",
         "category": "MCP",
         "icon": "$(git-compare)"
+      },
+      {
+        "command": "mcpWorkbench.createServer",
+        "title": "Create Server",
+        "category": "MCP",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "mcpWorkbench.toolsFromOpenApi",
+        "title": "Generate Tools from OpenAPI",
+        "category": "MCP",
+        "icon": "$(symbol-interface)"
+      },
+      {
+        "command": "mcpWorkbench.startBridge",
+        "title": "Start MCP Bridge (expose Workbench to AI clients)",
+        "category": "MCP",
+        "icon": "$(broadcast)"
+      },
+      {
+        "command": "mcpWorkbench.stopBridge",
+        "title": "Stop MCP Bridge",
+        "category": "MCP"
+      },
+      {
+        "command": "mcpWorkbench.copyBridgeConfig",
+        "title": "Copy MCP Bridge Client Config",
+        "category": "MCP"
       }
     ],
     "menus": {
@@ -402,9 +430,68 @@
               }
             }
           }
+        },
+        "mcpWorkbench.ai.permissions": {
+          "type": "object",
+          "default": {
+            "readTools": true,
+            "writeTools": false,
+            "destructiveTools": false,
+            "production": false
+          },
+          "markdownDescription": "What an AI client reaching Workbench through the MCP bridge may do without asking. Anything not allowed here prompts for human approval; nothing is ever silently denied.",
+          "properties": {
+            "readTools": {
+              "type": "boolean",
+              "description": "Allow read-only tools"
+            },
+            "writeTools": {
+              "type": "boolean",
+              "description": "Allow tools that write"
+            },
+            "destructiveTools": {
+              "type": "boolean",
+              "description": "Allow destructive tools"
+            },
+            "production": {
+              "type": "boolean",
+              "description": "Allow calls while a production environment is active"
+            }
+          }
         }
       }
-    }
+    },
+    "chatParticipants": [
+      {
+        "id": "mcp-workbench.mcp",
+        "name": "mcp",
+        "fullName": "MCP Workbench",
+        "description": "Ask about the MCP servers configured in this workspace",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "status",
+            "description": "Which servers are connected, and how healthy are they"
+          },
+          {
+            "name": "find",
+            "description": "Find a capability across every connected server"
+          },
+          {
+            "name": "explain",
+            "description": "Explain a tool and its parameters"
+          },
+          {
+            "name": "tests",
+            "description": "Generate tests for a tool"
+          },
+          {
+            "name": "why",
+            "description": "Diagnose the most recent failure"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

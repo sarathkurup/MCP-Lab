@@ -11,6 +11,8 @@ import {
   switchEnvironment,
 } from './analysisCommands';
 import { openJsonDocument, resolveServerId } from './helpers';
+import { copyBridgeConfig, startBridge, stopBridge } from './bridgeCommands';
+import { createServer, generateToolsFromOpenApi } from './scaffoldCommands';
 import {
   compareServersCommand,
   generateDocumentation,
@@ -66,6 +68,11 @@ export function registerCommands(
   );
   register('mcpWorkbench.securityScan', (node?: TreeNode) => securityScan(deps, node));
   register('mcpWorkbench.compareServers', () => compareServersCommand(deps));
+  register('mcpWorkbench.createServer', () => createServer(deps));
+  register('mcpWorkbench.toolsFromOpenApi', () => generateToolsFromOpenApi());
+  register('mcpWorkbench.startBridge', () => startBridge(deps));
+  register('mcpWorkbench.stopBridge', () => stopBridge(deps));
+  register('mcpWorkbench.copyBridgeConfig', () => copyBridgeConfig(deps));
 }
 
 // ---------------------------------------------------------------------------

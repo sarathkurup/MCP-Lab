@@ -16,6 +16,7 @@ import { LintDiagnostics } from './services/LintDiagnostics';
 import { McpTestController } from './services/McpTestController';
 import { OutputChannels } from './services/OutputChannels';
 import { TestRepository } from './services/TestRepository';
+import { WorkbenchMcpServer } from './services/WorkbenchMcpServer';
 import { WorkflowRepository } from './services/WorkflowRepository';
 import { EnvironmentStore } from './storage/EnvironmentStore';
 import { ServerStore } from './storage/ServerStore';
@@ -43,6 +44,7 @@ export class Workbench implements vscode.Disposable {
   readonly lintDiagnostics = new LintDiagnostics();
   readonly ai = new AiService();
   readonly workflows = new WorkflowRepository();
+  readonly bridge: WorkbenchMcpServer;
   readonly recorder: Recorder;
   private testController?: McpTestController;
 
@@ -68,6 +70,7 @@ export class Workbench implements vscode.Disposable {
 
     this.execution = new ExecutionService(this.manager, this.history);
     this.recorder = new Recorder(this.execution);
+    this.bridge = new WorkbenchMcpServer(this);
     this.channels = new OutputChannels(this.logs, this.trace);
     this.tree = new ServersTreeProvider(this.manager);
     this.panel = WorkbenchPanel.register(context);
@@ -326,6 +329,7 @@ export class Workbench implements vscode.Disposable {
     this.environments.dispose();
     this.tests.dispose();
     this.workflows.dispose();
+    this.bridge.dispose();
     this.recorder.dispose();
     this.lintDiagnostics.dispose();
     this.panel.dispose();

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { registerRpcHandlers } from './rpc/handlers';
+import { registerChatParticipant } from './services/ChatParticipant';
 import { Workbench } from './Workbench';
 
 let workbench: Workbench | undefined;
@@ -9,6 +10,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   workbench = new Workbench(context);
   registerRpcHandlers(workbench);
   registerCommands(context, workbench);
+  registerChatParticipant(context, workbench);
 
   const treeView = vscode.window.createTreeView('mcpWorkbench.servers', {
     treeDataProvider: workbench.tree,
