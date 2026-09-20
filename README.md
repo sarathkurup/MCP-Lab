@@ -127,7 +127,7 @@ mcp-workbench docs   --config mcp.config.json --out SERVER.md
 ```
 
 Exit codes: `0` ok, `1` failures found, `2` could not run. `--json` for
-machine-readable output. See [.github/workflows/mcp.yml](.github/workflows/mcp.yml).
+machine-readable output. A sample pipeline lives in `.github/workflows/mcp.yml`.
 
 ---
 
@@ -139,7 +139,7 @@ npm run build
 ```
 
 Press <kbd>F5</kbd> for an Extension Development Host, then open the
-[demo environment](demo/README.md) — three servers with deliberately planted
+demo environment in `demo/` (see `demo/README.md`) — three servers with planted
 problems, one per feature.
 
 ```bash

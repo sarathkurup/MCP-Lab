@@ -7,3 +7,11 @@ node_modules/**
 esbuild.js
 tsconfig.json
 **/*.map
+
+# Source artwork: far too large to ship. Set an `icon` in package.json with a
+# 128x128 PNG if you want one on the extension.
+logo*.png
+
+# Development-only helpers.
+install.cmd
+package-lock.json
