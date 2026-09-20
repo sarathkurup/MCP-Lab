@@ -1219,3 +1219,132 @@ button {
 .data-table tbody tr:hover {
   background: var(--vscode-list-hoverBackground);
 }
+
+/* ---------------------------------------------------------------- map */
+
+.map-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.map-toolbar {
+  gap: 10px;
+  align-items: baseline;
+}
+
+.map-title {
+  font-weight: 600;
+}
+
+.map-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px 16px;
+}
+
+.map-canvas {
+  display: block;
+  /* SVG text inherits nothing useful by default. */
+  font-family: var(--vscode-font-family);
+}
+
+.map-edge {
+  stroke: var(--vscode-panel-border);
+  stroke-width: 1.2;
+}
+
+.map-edge-dim {
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+.map-node-box {
+  fill: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  stroke: var(--vscode-panel-border);
+  stroke-width: 1;
+}
+
+.map-node-label {
+  fill: var(--vscode-foreground);
+  font-size: 11.5px;
+}
+
+.map-node-sub {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 10px;
+}
+
+.map-node-rule {
+  fill: var(--vscode-panel-border);
+}
+
+.map-node-clickable {
+  cursor: pointer;
+}
+
+.map-node-clickable:hover .map-node-box {
+  stroke: var(--vscode-focusBorder);
+  fill: var(--vscode-list-hoverBackground);
+}
+
+.map-node-clickable:focus-visible .map-node-box {
+  stroke: var(--vscode-focusBorder);
+  stroke-width: 2;
+}
+
+/* Tone lives on the left rule, so the node fill stays theme-neutral and the
+   whole map still reads in light, dark and high-contrast themes. */
+.map-node-server .map-node-rule { fill: var(--vscode-charts-purple, #b180d7); }
+.map-node-tool .map-node-rule,
+.map-node-write .map-node-rule { fill: var(--vscode-charts-orange, #d18616); }
+.map-node-read .map-node-rule { fill: var(--vscode-charts-blue, #3794ff); }
+.map-node-destructive .map-node-rule { fill: var(--vscode-testing-iconFailed, #f14c4c); }
+.map-node-resource .map-node-rule { fill: var(--vscode-charts-green, #89d185); }
+.map-node-prompt .map-node-rule { fill: var(--vscode-charts-purple, #b180d7); }
+.map-node-more .map-node-rule { fill: var(--vscode-descriptionForeground); }
+.map-node-more .map-node-label { fill: var(--vscode-descriptionForeground); font-style: italic; }
+
+.map-node-fresh .map-node-box {
+  stroke: var(--vscode-charts-yellow, #cca700);
+  stroke-width: 2;
+}
+
+.map-node-dot {
+  fill: var(--vscode-charts-yellow, #cca700);
+}
+
+.badge-new {
+  background: var(--vscode-charts-yellow, #cca700);
+  color: #000;
+}
+
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px 10px;
+  border-top: 1px solid var(--vscode-panel-border);
+  font-size: 11px;
+}
+
+.map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.map-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.map-swatch-read { background: var(--vscode-charts-blue, #3794ff); }
+.map-swatch-write { background: var(--vscode-charts-orange, #d18616); }
+.map-swatch-destructive { background: var(--vscode-testing-iconFailed, #f14c4c); }
+.map-swatch-resource { background: var(--vscode-charts-green, #89d185); }
+.map-swatch-prompt { background: var(--vscode-charts-purple, #b180d7); }

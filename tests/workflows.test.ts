@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { buildCatalogEntry, searchCatalog } from '../src/core/catalog';
+import { buildCatalogEntry, diffCatalogKeys, searchCatalog } from '../src/core/catalog';
 import { ConnectionManager } from '../src/core/ConnectionManager';
 import { ExecutionService } from '../src/core/execution';
 import { HistoryStore, type HistoryEntry } from '../src/core/history';
@@ -370,6 +370,42 @@ describe('workflowFromHistory', () => {
 });
 
 // ---------------------------------------------------------------------------
+
+describe('catalog diff', () => {
+  it('says nothing the first time it sees a server', () => {
+    // Otherwise every server would light up as entirely new the moment it was
+    // first drawn, and people would learn to ignore the highlight.
+    assert.deepEqual(diffCatalogKeys(undefined, ['tool:a', 'tool:b']), {
+      added: [],
+      removed: [],
+    });
+  });
+
+  it('reports what a list_changed notification actually changed', () => {
+    const before = ['tool:a', 'tool:b', 'prompt:p'];
+    const after = ['tool:a', 'tool:c', 'prompt:p', 'resource:r'];
+    assert.deepEqual(diffCatalogKeys(before, after), {
+      added: ['tool:c', 'resource:r'],
+      removed: ['tool:b'],
+    });
+  });
+
+  it('reports nothing when the catalog is unchanged', () => {
+    const keys = ['tool:a', 'tool:b'];
+    assert.deepEqual(diffCatalogKeys(keys, [...keys]), { added: [], removed: [] });
+  });
+
+  it('is not fooled by reordering', () => {
+    assert.deepEqual(diffCatalogKeys(['a', 'b', 'c'], ['c', 'a', 'b']), {
+      added: [],
+      removed: [],
+    });
+  });
+
+  it('treats an emptied catalog as a removal, not a first sighting', () => {
+    assert.deepEqual(diffCatalogKeys(['tool:a'], []), { added: [], removed: ['tool:a'] });
+  });
+});
 
 describe('catalog', () => {
   const tools: Tool[] = [

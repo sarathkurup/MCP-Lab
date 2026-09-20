@@ -9,6 +9,7 @@ import { doctorView } from './views/doctor';
 import { explorerView } from './views/explorer';
 import { historyView } from './views/history';
 import { logsView } from './views/logs';
+import { mapView } from './views/map';
 import { securityView } from './views/security';
 import { testsView } from './views/tests';
 import { traceView } from './views/trace';
@@ -33,6 +34,7 @@ window.addEventListener('message', (event) => {
 
 const VIEWS: ViewDefinition[] = [
   explorerView,
+  mapView,
   historyView,
   testsView,
   doctorView,
@@ -100,6 +102,13 @@ function handleEvent(name: string, payload: unknown): void {
     renderChrome();
     // The catalog can change shape underneath the explorer, so drop its cache.
     delete (state.scratch as Record<string, unknown>).explorer;
+    // The map only drops its cached payload: it also remembers what it last
+    // drew, and clearing that would lose the diff that makes a newly announced
+    // tool stand out.
+    const map = (state.scratch as Record<string, unknown>).map as
+      | { detail?: unknown }
+      | undefined;
+    if (map) map.detail = undefined;
     void renderActive();
     return;
   }

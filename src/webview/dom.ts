@@ -59,6 +59,34 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * The SVG twin of `h`. It cannot share the implementation because SVG elements
+ * need `createElementNS`, and because SVG attributes are hyphenated rather than
+ * camel-cased - so everything here is set verbatim with `setAttribute`.
+ */
+export function svg(tag: string, attrs?: Attrs | null, ...children: Child[]): SVGElement {
+  const el = document.createElementNS(SVG_NS, tag);
+
+  for (const [key, value] of Object.entries(attrs ?? {})) {
+    if (value === undefined || value === null || value === false) {
+      continue;
+    }
+    if (key.startsWith('on') && typeof value === 'function') {
+      el.addEventListener(
+        key.slice(2).toLowerCase(),
+        value as EventListenerOrEventListenerObject,
+      );
+    } else {
+      el.setAttribute(key, String(value));
+    }
+  }
+
+  append(el, children);
+  return el;
+}
+
 export function append(parent: Node, children: Child[]): void {
   for (const child of children) {
     if (child === null || child === undefined || child === false) {

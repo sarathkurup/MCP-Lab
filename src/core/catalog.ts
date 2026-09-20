@@ -261,6 +261,33 @@ function score(
   return { score: 20, matchedOn: 'description' };
 }
 
+/** What moved between two catalog snapshots, compared by stable item key. */
+export interface CatalogDiff {
+  added: string[];
+  removed: string[];
+}
+
+/**
+ * Compares the keys of two catalog snapshots.
+ *
+ * A server that announces `notifications/tools/list_changed` gets its catalog
+ * refetched, and this is what turns the new list into "three tools appeared".
+ * The first sighting deliberately reports nothing: without that, every server
+ * would light up as entirely new the moment it was first drawn, which would
+ * train people to ignore the signal.
+ */
+export function diffCatalogKeys(previous: string[] | undefined, current: string[]): CatalogDiff {
+  if (!previous) {
+    return { added: [], removed: [] };
+  }
+  const before = new Set(previous);
+  const after = new Set(current);
+  return {
+    added: current.filter((key) => !before.has(key)),
+    removed: previous.filter((key) => !after.has(key)),
+  };
+}
+
 /** Groups hits by server, for rendering the results by origin. */
 export function groupHits(hits: SearchHit[]): Map<string, SearchHit[]> {
   const grouped = new Map<string, SearchHit[]>();
