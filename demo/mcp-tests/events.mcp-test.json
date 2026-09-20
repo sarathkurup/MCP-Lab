@@ -1,0 +1,42 @@
+{
+  "name": "CMS events",
+  "server": "CMS MCP",
+  "tests": [
+    {
+      "name": "lists events for QC",
+      "tool": "getEvents",
+      "input": { "environment": "QC" },
+      "assertions": [
+        { "path": "$.structuredContent.count", "type": "number" },
+        { "path": "$.structuredContent.events", "type": "array" },
+        { "path": "$.isError", "notEquals": true }
+      ]
+    },
+    {
+      "name": "rejects an unknown environment",
+      "tool": "getEvents",
+      "input": { "environment": "STAGING" },
+      "expectError": true
+    },
+    {
+      "name": "rejects a missing environment",
+      "tool": "getEvents",
+      "input": {},
+      "expectError": { "code": -32602 }
+    },
+    {
+      "name": "updates an event title",
+      "tool": "updateEvent",
+      "input": { "eventId": "evt-1", "title": "Spring launch 2026" },
+      "assertions": [
+        { "path": "$.structuredContent.event.title", "equals": "Spring launch 2026" }
+      ]
+    },
+    {
+      "name": "answers within the latency budget",
+      "tool": "getEvents",
+      "input": { "environment": "DEV" },
+      "maxDurationMs": 500
+    }
+  ]
+}

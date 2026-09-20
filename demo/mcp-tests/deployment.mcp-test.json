@@ -1,0 +1,24 @@
+{
+  "name": "Deployment checks",
+  "server": "Deployment MCP",
+  "tests": [
+    {
+      "name": "QC pipeline succeeded",
+      "tool": "getPipelineStatus",
+      "input": { "environment": "QC" },
+      "assertions": [{ "path": "$.structuredContent.status", "equals": "success" }]
+    },
+    {
+      "name": "logs come back for a pipeline",
+      "tool": "getDeploymentLogs",
+      "input": { "pipelineId": "pipe-2210", "lines": 3 },
+      "assertions": [{ "path": "$.content[0].text", "contains": "deploying pipe-2210" }]
+    },
+    {
+      "name": "rollback requires a reason",
+      "tool": "rollbackDeployment",
+      "input": { "environment": "QC" },
+      "expectError": true
+    }
+  ]
+}

@@ -1178,3 +1178,34 @@ button {
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* ---------------------------------------------------------------- tables */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  vertical-align: top;
+}
+
+.data-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+}
+
+.data-table tbody tr:hover {
+  background: var(--vscode-list-hoverBackground);
+}

@@ -1,115 +1,222 @@
 # MCP Workbench
 
-A development environment for Model Context Protocol servers, inside VS Code.
+A development environment for Model Context Protocol servers, inside VS Code —
+and a CLI that runs the same engine in CI.
 
-This repository is at **Phase 0 + Phase 1** of the roadmap: the foundation and a
-working connection engine. Everything else (explorer, execution, tests, doctor,
-workflows) builds on the core established here.
+Build MCP servers, connect to existing ones, explore tools and resources,
+execute and test them, debug protocol traffic, diagnose problems, generate tests,
+manage environments, and expose trusted MCP capabilities to AI agents.
 
-## Architecture
+---
 
-The one rule that shapes everything: **`src/core/` never imports `vscode`.**
+## The one architectural rule
+
+**`src/core/` never imports `vscode`.**
 
 ```
-            ┌──────────────────────────┐
-            │  src/vscode/  (UI layer) │  tree view, commands, secrets, output
-            └────────────┬─────────────┘
-                         │ observes
-            ┌────────────▼─────────────┐
-            │  src/core/   (engine)    │  no vscode import, no UI assumptions
-            └────────────┬─────────────┘
-                         │
-      ┌──────────────────┼──────────────────┐
-      ▼                  ▼                  ▼
-  Transport          McpClient        ConnectionManager
-  (stdio, http)      (JSON-RPC,       (many servers,
-                      handshake,       status, catalog)
-                      primitives)
+        ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+        │  src/vscode/ │   │   src/cli/   │   │ src/webview/ │
+        │  extension   │   │  CI runner   │   │    panel     │
+        └───────┬──────┘   └───────┬──────┘   └───────┬──────┘
+                └──────────────────┼──────────────────┘
+                        ┌──────────▼──────────┐
+                        │      src/core/      │
+                        │  no vscode, no DOM  │
+                        └──────────┬──────────┘
+        ┌──────────────────────────┼──────────────────────────┐
+        ▼                          ▼                          ▼
+    Transports                 McpClient                ConnectionManager
+  stdio · streamable HTTP   handshake · pagination      status · catalog
 ```
 
-The core is exercised by tests that spawn real MCP servers — no VS Code in the
-loop. That same engine can later drive a CLI, a CI runner, or Workbench-as-an-
-MCP-server without being rewritten.
+That rule is not aspirational. `tests/cli.test.ts` spawns the compiled CLI as a
+real process and drives three MCP servers with no editor present — it would fail
+the moment core grew an editor dependency.
 
-| Path | What lives there |
-| --- | --- |
-| `src/core/protocol.ts` | JSON-RPC envelopes + the MCP schema subset |
-| `src/core/transport/` | `Transport` interface, stdio, streamable HTTP |
-| `src/core/McpClient.ts` | Request correlation, `initialize`, primitives, pagination |
-| `src/core/McpConnection.ts` | One server: status, catalog, lifecycle |
-| `src/core/ConnectionManager.ts` | The set of servers |
-| `src/core/trace.ts` | Every raw frame, both directions, with round-trip times |
-| `src/core/logging.ts` | Workbench, stderr and server-side log lines |
-| `src/vscode/` | Tree view, commands, `SecretStorage`, output channels |
-| `tests/fixtures/` | A dependency-free MCP server used by the tests |
+Workbench speaks **both halves** of the protocol: it is a client to the servers
+you configure, and a server to the AI clients you connect.
 
-### Why not the MCP SDK?
+```
+  Claude Code / Copilot ──MCP──▶ MCP Workbench ──MCP──▶ CMS · Deployment · AWS
+                                       │
+                                  one gate: classify,
+                                  check environment,
+                                  ask a human
+```
 
-The transports and client are hand-rolled so that **every frame on the wire is
-observable**. The protocol debugger, request history and latency analytics in
-later phases all read from one `TraceStore` that the transports feed directly.
-Swapping in the SDK later means implementing `Transport` against it; nothing
-above that interface changes.
+---
 
-## What works today
+## What it does
 
-- Add a server through a three-step wizard (stdio or streamable HTTP)
-- Servers from workspace settings (`mcpWorkbench.servers`) are merged in read-only
-- Connect / disconnect / reconnect, with status reflected live in the tree
-- `initialize` handshake with protocol-version negotiation and capability gating
-- Discovery of tools, resources, resource templates and prompts — cursor-paginated
-- Bearer tokens in `SecretStorage`, resolved per request so rotation is picked up
-- `notifications/*/list_changed` triggers an automatic catalog refresh
-- stderr from a stdio server becomes logs instead of corrupting the protocol
-- Raw protocol trace and logs in output channels
-- Copy any tool / resource / prompt definition as JSON
+### Explore and execute
 
-Tool *execution* is deliberately not wired to the UI yet — that is Phase 3, and
-it lands together with the dynamic JSON-schema form.
+- A form built from each tool's JSON Schema — nothing is hardcoded. Objects,
+  arrays, enums, formats, nullable via `anyOf`, nested structures.
+- Form ⇄ raw JSON, carrying the value across.
+- Validation before the request leaves Workbench; per-field error marking.
+- Results rendered by shape: uniform arrays become tables, text, markdown,
+  images, audio, embedded resources, prompt messages, errors.
+- Every invocation recorded and replayable byte-for-byte.
 
-## Running it
+### Test
+
+- Tests are plain JSON (`**/*.mcp-test.json`) — reviewable, diffable, and
+  runnable in CI without Workbench installed.
+- Assertions use JSONPath-lite: `$.structuredContent.sum`, `$.content[0].text`.
+- `expectError`, `expectToolError`, latency budgets, `skip`.
+- Suites appear in VS Code's own Test Explorer with expected/actual diffs.
+- **Generation is deterministic first**: the schema already states what is
+  required, what the enums are and where the bounds lie, so those cases are
+  derived exactly and offline. A language model only adds what a schema cannot
+  express.
+
+### Diagnose
+
+- **Doctor** — 14 checks across connectivity, protocol, capabilities, error
+  handling, schema quality, security and coverage. Probes are read-only by
+  construction: a ping, and a deliberately unknown tool name.
+- **Linter** — `MCP001`–`MCP012`, published as editor diagnostics.
+- **Security scan** — config, catalog, logs and history, looking for leaked
+  credentials, PII, unannotated destructive tools and unencrypted transports.
+  Every finding names its evidence, because Workbench cannot read server source
+  and does not pretend to.
+- **Protocol trace** — every JSON-RPC frame in both directions, with round-trip
+  times. **Logs** — Workbench events, server stderr and MCP logging
+  notifications, with credentials masked on the way in.
+
+### Compose
+
+- **Workflows** — steps that read earlier outputs through
+  `{{steps.<id>.output.<path>}}`, with branches and per-step error handling.
+- **Record & replay** — arm the recorder, work normally, then save the sequence
+  as a workflow (values auto-wired between steps) or as a regression suite.
+- **Compare** — contract diff between two servers, classifying each change as
+  breaking or not: removed tools, narrowed enums, optional becoming required,
+  dropped destructive hints.
+
+### Operate
+
+- **Environments** — DEV/QC/PROD with per-environment targets. Switching
+  disconnects everything, because the connections now point elsewhere.
+- **One risk gate.** Tools are classified `read` / `write` / `destructive` by
+  annotation first, name second. Production writes are confirmed even when a
+  tool carries no annotations. Workflows, tests and AI clients all pass through
+  it.
+- **Auth** — bearer, custom header, basic, OAuth client-credentials. Only the
+  credential *shape* lives in config; the secret is in `SecretStorage`.
+- **Catalog & search** — every server with owner, version and health derived
+  from real usage, plus ranked search across all of them.
+- **Analytics** — call counts, failure rates, p50/p95, by target.
+
+### Build
+
+- **Scaffold** a new server in TypeScript, Python or C#, each shipping an
+  `mcp.config.json` so the CLI can reach it immediately.
+- **REST → MCP**: convert an OpenAPI document into tool definitions plus
+  TypeScript handlers. It warns rather than guesses.
+
+---
+
+## The CLI
+
+```bash
+mcp-workbench test   --config mcp.config.json --junit report.xml
+mcp-workbench lint   --config mcp.config.json --max-warnings 5
+mcp-workbench doctor --config mcp.config.json
+mcp-workbench docs   --config mcp.config.json --out SERVER.md
+```
+
+Exit codes: `0` ok, `1` failures found, `2` could not run. `--json` for
+machine-readable output. See [.github/workflows/mcp.yml](.github/workflows/mcp.yml).
+
+---
+
+## Try it
 
 ```bash
 npm install
 npm run build
 ```
 
-Then press <kbd>F5</kbd> in VS Code to launch an Extension Development Host with
-Workbench loaded, and open the MCP Workbench view in the activity bar.
+Press <kbd>F5</kbd> for an Extension Development Host, then open the
+[demo environment](demo/README.md) — three servers with deliberately planted
+problems, one per feature.
 
-To point it at the bundled demo server, add a stdio server with the command:
-
+```bash
+cd demo
+node ../dist/cli.js doctor --config mcp.config.json --server "CMS MCP"
 ```
-node tests/fixtures/demo-server.js
-```
 
-It exposes a read-only tool, a destructive tool (so annotation handling is
-visible), a resource and a prompt.
+---
+
+## Layout
+
+| Path | What lives there |
+| --- | --- |
+| `src/core/protocol.ts` | JSON-RPC envelopes + the MCP schema subset |
+| `src/core/transport/` | `Transport` interface, stdio, streamable HTTP |
+| `src/core/McpClient.ts` | Correlation, handshake, primitives, pagination |
+| `src/core/serverRole.ts` | The **server** half: Workbench as an MCP server |
+| `src/core/schema.ts` | JSON Schema → form model, validation, pruning |
+| `src/core/execution.ts` | The one path every invocation takes |
+| `src/core/testing.ts` · `testgen.ts` | Test model, runner, schema-derived generation |
+| `src/core/doctor.ts` · `linter.ts` · `security.ts` | Analysis |
+| `src/core/workflows.ts` · `recording.ts` | Composition |
+| `src/core/compare.ts` · `catalog.ts` · `docs.ts` | Contract diff, catalog, docs |
+| `src/core/scaffold.ts` · `openapi.ts` | Project templates, REST → MCP |
+| `src/vscode/` | Extension host: tree, panel, commands, secrets, bridge |
+| `src/webview/` | The panel UI — no framework, VS Code theme variables |
+| `src/cli/` | The CI runner |
+| `demo/` | A fake enterprise with planted problems |
+
+### Why not the MCP SDK?
+
+The client and transports are hand-rolled so that **every frame on the wire is
+observable**. The protocol debugger, history, latency analytics and the doctor
+all read from one `TraceStore` that the transports feed directly. Swapping the
+SDK in later means implementing `Transport` against it; nothing above that
+interface changes.
+
+---
 
 ## Development
 
 ```bash
-npm run watch      # esbuild in watch mode, used by the F5 launch config
+npm run watch      # esbuild, used by the F5 launch config
 npm run typecheck  # tsc --noEmit
-npm test           # compiles, then runs the core suite against real servers
+npm test           # compiles, then runs everything
 ```
 
-The test suite covers both transports end to end: handshake, pagination,
-capability gating, error mapping, session headers, SSE and JSON response shapes,
-auth headers, and connection-manager lifecycle.
+163 tests. They cover both transports end to end, the schema engine, execution
+and history, the test runner and generator, linter, doctor, environments and
+guards, auth including OAuth refresh, security scanning, contract comparison,
+workflows and chaining, recording, catalog and search, scaffolding, OpenAPI
+conversion, the MCP server role, redaction, reconnection — and the CLI as a real
+process against the demo servers.
 
-## Roadmap
+### Things the tests caught
 
-Phase 0 and 1 are done. Next, in order:
+Worth recording, because they are the kind of bug that survives a read-through:
 
-1. **Phase 2 — Explorer.** Webview with a dynamic renderer driven by each tool's
-   JSON schema. No hardcoded fields.
-2. **Phase 3 — Execution.** Form and raw-JSON modes, validation before send,
-   response viewer, timing.
-3. **Phase 4 — History.** Every invocation stored and replayable.
-4. **Phase 5 — Resources & prompts** as first-class panels.
-5. **Phase 6/7 — Protocol debugger and live logs** on top of the existing
-   `TraceStore` and `LogStore`.
+- An unset enum arrived as `""` and was being sent instead of pruned.
+- A generated negative case proved the demo server was not enforcing its own
+  declared schema.
+- After a workflow branch took its "true" arm, fall-through carried execution
+  straight into the "false" arm.
+- A flapping server reset the reconnect backoff on every brief success, so it
+  would have retried forever.
+- On Windows, `shell: true` re-parses the command line, breaking any path with
+  spaces — so path-like commands now spawn without a shell.
 
-Later phases (tests, doctor, linter, environments, workflows, catalog, AI) are
-described in the project plan.
+---
+
+## Status
+
+Phases 0–32 of the project plan are implemented, with two documented limits:
+
+- **Interactive OAuth** (authorization-code + PKCE) is not implemented.
+  Client-credentials is. Interactive flows need a loopback redirect and a URI
+  handler; bearer, header and basic auth cover the rest.
+- **The VS Code UI layer is not covered by automated tests.** The core is, and
+  the CLI is tested end to end as a real process. Testing the extension host
+  itself needs `@vscode/test-electron`, which downloads a VS Code build.

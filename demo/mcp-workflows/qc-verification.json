@@ -1,0 +1,41 @@
+{
+  "id": "qc-verification",
+  "name": "QC Deployment Verification",
+  "description": "Checks the QC pipeline, then either inspects the app or pulls the failure logs.",
+  "server": "Deployment MCP",
+  "steps": [
+    {
+      "id": "pipeline",
+      "name": "Get pipeline status",
+      "kind": "tool",
+      "tool": "getPipelineStatus",
+      "input": { "environment": "QC" }
+    },
+    {
+      "id": "succeeded",
+      "name": "Did it succeed?",
+      "kind": "branch",
+      "input": "{{steps.pipeline.output}}",
+      "condition": { "path": "$.structuredContent.status", "equals": "success" },
+      "onTrue": "health",
+      "onFalse": "logs"
+    },
+    {
+      "id": "health",
+      "name": "Check application health",
+      "kind": "tool",
+      "tool": "getHealth",
+      "input": { "environment": "QC" }
+    },
+    {
+      "id": "logs",
+      "name": "Pull deployment logs",
+      "kind": "tool",
+      "tool": "getDeploymentLogs",
+      "input": {
+        "pipelineId": "{{steps.pipeline.output.structuredContent.id}}",
+        "lines": 10
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+# Example pipeline for a repository that owns an MCP server.
+#
+# The point of the CLI is that this needs no editor: lint and contract tests
+# run against the real server, in the same engine the extension uses.
+name: MCP
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      # Below here is what a *consumer* repository would run against its own
+      # server, using the published CLI:  npx mcp-workbench <command>
+      - name: MCP lint
+        run: node dist/cli.js lint --config demo/mcp.config.json --max-warnings 10
+        working-directory: .
+
+      - name: MCP contract tests
+        run: node dist/cli.js test --config mcp.config.json --junit ../mcp-report.xml
+        working-directory: demo
+        continue-on-error: true # the demo ships one deliberate failure
+
+      - name: MCP doctor
+        run: node dist/cli.js doctor --config mcp.config.json --server "Deployment MCP"
+        working-directory: demo
+
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-report
+          path: mcp-report.xml

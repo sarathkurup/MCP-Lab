@@ -1,4 +1,5 @@
 import { Emitter } from './events';
+import { redact, redactValue } from './redaction';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -21,9 +22,25 @@ export class LogStore {
   private readonly changed = new Emitter<LogEntry>();
   readonly onDidLog = this.changed.on.bind(this.changed);
 
-  constructor(private readonly capacity = 5000) {}
+  constructor(
+    private readonly capacity = 5000,
+    /** Masking is on by default: logs get pasted into issues and chats. */
+    private redactSecrets = true,
+  ) {}
 
-  append(entry: LogEntry): void {
+  setRedaction(enabled: boolean): void {
+    this.redactSecrets = enabled;
+  }
+
+  append(rawEntry: LogEntry): void {
+    const entry: LogEntry = this.redactSecrets
+      ? {
+          ...rawEntry,
+          message: redact(rawEntry.message),
+          detail: rawEntry.detail === undefined ? undefined : redactValue(rawEntry.detail),
+        }
+      : rawEntry;
+
     this.entries.push(entry);
     if (this.entries.length > this.capacity) {
       this.entries.splice(0, this.entries.length - this.capacity);

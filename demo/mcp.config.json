@@ -1,0 +1,41 @@
+{
+  "servers": [
+    {
+      "id": "cms",
+      "name": "CMS MCP",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["servers/cms-server.js"],
+      "metadata": {
+        "team": "Platform",
+        "owner": "platform-team@demo.example",
+        "repository": "https://git.demo.example/platform/cms-mcp",
+        "tags": ["content", "events"]
+      }
+    },
+    {
+      "id": "deployment",
+      "name": "Deployment MCP",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["servers/deployment-server.js"],
+      "metadata": {
+        "team": "DevOps",
+        "owner": "devops@demo.example",
+        "tags": ["pipelines", "deploy"]
+      }
+    },
+    {
+      "id": "employee",
+      "name": "Employee MCP",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["servers/employee-server.js"],
+      "metadata": {
+        "team": "People Systems",
+        "owner": "people-eng@demo.example",
+        "tags": ["hr", "entitlements"]
+      }
+    }
+  ]
+}

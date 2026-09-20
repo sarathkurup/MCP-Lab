@@ -13,6 +13,7 @@ export interface ConnectionManagerDeps {
   trace: TraceStore;
   requestTimeoutMs: () => number;
   authProvider?: (config: ServerConfig) => Promise<Record<string, string>>;
+  maxReconnectAttempts?: () => number;
 }
 
 /**
@@ -37,6 +38,7 @@ export class ConnectionManager {
       trace: this.deps.trace,
       requestTimeoutMs: this.deps.requestTimeoutMs,
       authProvider: this.deps.authProvider,
+      maxReconnectAttempts: this.deps.maxReconnectAttempts,
     };
   }
 

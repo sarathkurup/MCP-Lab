@@ -288,6 +288,14 @@ function renderToolDetail(ctx: AppContext, store: ExplorerScratch, tool: Tool): 
     container.appendChild(h('p', { class: 'detail-description' }, tool.description));
   }
 
+  // A failed request handed back by "Fix request" wins over the cached value.
+  const pendingFix = ctx.state.scratch.pendingFix;
+  if (pendingFix !== undefined) {
+    store.formValue = pendingFix;
+    store.jsonDraft = undefined;
+    delete (ctx.state.scratch as Record<string, unknown>).pendingFix;
+  }
+
   const form = new SchemaForm(spec, store.formValue, () => {
     store.formValue = form.getValue();
   });

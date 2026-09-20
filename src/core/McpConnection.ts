@@ -38,7 +38,12 @@ export interface McpConnectionDeps {
   requestTimeoutMs: () => number;
   /** Extra headers (e.g. Authorization) resolved per request; never stored in config. */
   authProvider?: (config: ServerConfig) => Promise<Record<string, string>>;
+  /** How many times to retry a dropped connection. 0 disables it. */
+  maxReconnectAttempts?: () => number;
 }
+
+/** A connection that lasted this long is treated as healthy, not flapping. */
+const STABLE_CONNECTION_MS = 30_000;
 
 const EMPTY_CATALOG: ServerCatalog = {
   tools: [],
@@ -58,6 +63,11 @@ export class McpConnection {
   private lastErrorMessage?: string;
   private currentCatalog: ServerCatalog = EMPTY_CATALOG;
   private connectPromise?: Promise<void>;
+  private reconnectAttempt = 0;
+  private connectedAt?: number;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  /** Set when the user asked to disconnect, which must not trigger a retry. */
+  private intentionalDisconnect = false;
 
   private readonly statusChanged = new Emitter<ConnectionStatusEvent>();
   private readonly catalogChanged = new Emitter<string>();
@@ -108,6 +118,7 @@ export class McpConnection {
   }
 
   async connect(): Promise<void> {
+    this.intentionalDisconnect = false;
     if (this.currentStatus === 'connected') {
       return;
     }
@@ -141,6 +152,7 @@ export class McpConnection {
           `v${result.serverInfo?.version ?? '?'} (protocol ${result.protocolVersion})`,
       );
 
+      this.connectedAt = Date.now();
       this.setStatus('connected');
       await this.refreshCatalog();
     } catch (err) {
@@ -205,13 +217,20 @@ export class McpConnection {
       }
     });
     client.onClose((reason) => {
-      if (this.currentStatus === 'disconnected') {
+      if (this.currentStatus === 'disconnected' || this.intentionalDisconnect) {
         return;
       }
       this.lastErrorMessage = reason;
       this.log('warn', reason ?? 'Connection closed by server');
       this.currentCatalog = EMPTY_CATALOG;
       this.setStatus('error', reason);
+
+      // Only a connection that stayed up earns a fresh budget of retries.
+      if (this.connectedAt && Date.now() - this.connectedAt >= STABLE_CONNECTION_MS) {
+        this.reconnectAttempt = 0;
+      }
+      this.connectedAt = undefined;
+      this.scheduleReconnect();
     });
   }
 
@@ -284,6 +303,8 @@ export class McpConnection {
   }
 
   async disconnect(): Promise<void> {
+    this.intentionalDisconnect = true;
+    this.cancelReconnect();
     if (this.currentStatus === 'disconnected') {
       return;
     }
@@ -297,7 +318,50 @@ export class McpConnection {
 
   async reconnect(): Promise<void> {
     await this.disconnect();
+    this.intentionalDisconnect = false;
     await this.connect();
+  }
+
+  /**
+   * Retries a *dropped* connection with exponential backoff - a server
+   * restarted by its own build step is the common case. A failed initial
+   * connect is not retried: the user asked for it explicitly and deserves the
+   * error, rather than a background loop against a server that will not start.
+   */
+  private scheduleReconnect(): void {
+    const limit = this.deps.maxReconnectAttempts?.() ?? 5;
+    if (limit <= 0 || this.reconnectAttempt >= limit) {
+      if (limit > 0) {
+        this.log('warn', `Giving up after ${this.reconnectAttempt} reconnection attempt(s)`);
+      }
+      return;
+    }
+
+    this.reconnectAttempt++;
+    const delay = Math.min(30_000, 500 * 2 ** (this.reconnectAttempt - 1));
+    this.log('info', `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempt}/${limit})`);
+
+    this.cancelReconnect();
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      if (this.intentionalDisconnect) {
+        return;
+      }
+      void this.connect().catch(() => {
+        // doConnect already logged; schedule the next attempt from here so a
+        // server that is down stays retried rather than retried once.
+        this.scheduleReconnect();
+      });
+    }, delay);
+    // A pending retry must not hold the process open in the CLI.
+    this.reconnectTimer.unref?.();
+  }
+
+  private cancelReconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
   }
 
   private async teardown(): Promise<void> {
@@ -314,6 +378,8 @@ export class McpConnection {
   }
 
   async dispose(): Promise<void> {
+    this.intentionalDisconnect = true;
+    this.cancelReconnect();
     await this.teardown();
     this.statusChanged.dispose();
     this.catalogChanged.dispose();

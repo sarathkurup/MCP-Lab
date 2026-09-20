@@ -52,6 +52,7 @@ export class Workbench implements vscode.Disposable {
 
   constructor(readonly context: vscode.ExtensionContext) {
     this.trace = new TraceStore(config().traceMaxEntries);
+    this.logs.setRedaction(config().redactSecrets);
     this.store = new ServerStore(context);
     this.environments = new EnvironmentStore(context);
     this.tests = new TestRepository();
@@ -66,6 +67,7 @@ export class Workbench implements vscode.Disposable {
       trace: this.trace,
       requestTimeoutMs: () => config().requestTimeoutMs,
       authProvider: (server) => this.store.authHeaders(server),
+      maxReconnectAttempts: () => config().maxReconnectAttempts,
     });
 
     this.execution = new ExecutionService(this.manager, this.history);
@@ -104,6 +106,9 @@ export class Workbench implements vscode.Disposable {
         }
         if (event.affectsConfiguration('mcpWorkbench.trace.maxEntries')) {
           this.trace.setCapacity(config().traceMaxEntries);
+        }
+        if (event.affectsConfiguration('mcpWorkbench.redactSecrets')) {
+          this.logs.setRedaction(config().redactSecrets);
         }
       }),
     );
@@ -337,11 +342,18 @@ export class Workbench implements vscode.Disposable {
   }
 }
 
-export function config(): { requestTimeoutMs: number; traceMaxEntries: number } {
+export function config(): {
+  requestTimeoutMs: number;
+  traceMaxEntries: number;
+  maxReconnectAttempts: number;
+  redactSecrets: boolean;
+} {
   const settings = vscode.workspace.getConfiguration('mcpWorkbench');
   return {
     requestTimeoutMs: settings.get<number>('requestTimeoutMs', 30_000),
     traceMaxEntries: settings.get<number>('trace.maxEntries', 2000),
+    maxReconnectAttempts: settings.get<number>('maxReconnectAttempts', 5),
+    redactSecrets: settings.get<boolean>('redactSecrets', true),
   };
 }
 

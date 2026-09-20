@@ -458,6 +458,17 @@
               "description": "Allow calls while a production environment is active"
             }
           }
+        },
+        "mcpWorkbench.maxReconnectAttempts": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "description": "How many times to retry a dropped connection, with exponential backoff. 0 disables automatic reconnection."
+        },
+        "mcpWorkbench.redactSecrets": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Mask credentials (bearer tokens, API keys, private keys, JWTs) in log output. Logs are frequently pasted into issues and chats, so this is on by default."
         }
       }
     },

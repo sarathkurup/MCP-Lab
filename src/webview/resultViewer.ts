@@ -69,6 +69,43 @@ export function renderResult(ctx: AppContext, view: ExecutionView): HTMLElement 
           },
           '🤖 Analyze with AI',
         ),
+        h(
+          'button',
+          {
+            class: 'btn-ghost',
+            title: 'Load this request back into the form so it can be corrected',
+            onClick: () => {
+              ctx.state.scratch.pendingFix = entry.input;
+              ctx.state.selection = { kind: entry.kind, name: entry.name };
+              ctx.navigate('explorer');
+            },
+          },
+          'Fix request',
+        ),
+        h(
+          'button',
+          {
+            class: 'btn-ghost',
+            onClick: async () => {
+              try {
+                const again = await ctx.rpc.call<ExecutionView>('replay', { historyId: entry.id });
+                document.querySelector('.result-host')?.replaceChildren(renderResult(ctx, again));
+              } catch (err) {
+                ctx.toast((err as Error).message, 'error');
+              }
+            },
+          },
+          'Run again',
+        ),
+        h(
+          'button',
+          {
+            class: 'btn-ghost',
+            title: 'Save this failure as a regression test',
+            onClick: () => void ctx.rpc.call('saveAsTest', { historyId: entry.id }),
+          },
+          'Generate regression test',
+        ),
       ),
     );
   } else {
@@ -102,7 +139,7 @@ function renderOutput(kind: string, output: unknown): HTMLElement {
           'div',
           { class: 'panel' },
           h('h4', null, 'Structured content'),
-          codeBlock(pretty(result.structuredContent)),
+          renderStructured(result.structuredContent),
         ),
       );
     }
@@ -180,6 +217,99 @@ function renderBlock(block: ContentBlock): HTMLElement {
     default:
       return codeBlock(pretty(block));
   }
+}
+
+/**
+ * Structured content gets a shape-aware rendering: a uniform array of objects
+ * becomes a table, a flat object becomes a key/value list, and anything else
+ * falls back to JSON. This is the honest version of "rich UI" - it reads the
+ * data the server already returns rather than requiring a UI extension.
+ */
+function renderStructured(value: unknown): HTMLElement {
+  if (Array.isArray(value) && value.length > 0 && value.every(isFlatRecord)) {
+    return renderTable(value as Array<Record<string, unknown>>);
+  }
+
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const arrayKey = Object.keys(record).find(
+      (key) =>
+        Array.isArray(record[key]) &&
+        (record[key] as unknown[]).length > 0 &&
+        (record[key] as unknown[]).every(isFlatRecord),
+    );
+    if (arrayKey) {
+      // The common shape: { events: [...], count: 3 }
+      const rest = { ...record };
+      delete rest[arrayKey];
+      return h(
+        'div',
+        null,
+        Object.keys(rest).length ? renderRecord(rest) : null,
+        h('h4', null, arrayKey),
+        renderTable(record[arrayKey] as Array<Record<string, unknown>>),
+      );
+    }
+    if (isFlatRecord(record)) {
+      return renderRecord(record);
+    }
+  }
+
+  return codeBlock(pretty(value));
+}
+
+function isFlatRecord(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value as Record<string, unknown>).every(
+    (entry) => entry === null || typeof entry !== 'object',
+  );
+}
+
+function renderTable(rows: Array<Record<string, unknown>>): HTMLElement {
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+  const table = h('table', { class: 'data-table' });
+
+  table.appendChild(
+    h('thead', null, h('tr', null, ...columns.map((column) => h('th', null, column)))),
+  );
+
+  const body = h('tbody');
+  for (const row of rows.slice(0, 200)) {
+    body.appendChild(
+      h(
+        'tr',
+        null,
+        ...columns.map((column) => h('td', null, formatCell(row[column]))),
+      ),
+    );
+  }
+  table.appendChild(body);
+
+  return rows.length > 200
+    ? h('div', null, table, h('p', { class: 'muted small' }, `Showing 200 of ${rows.length} rows.`))
+    : table;
+}
+
+function renderRecord(record: Record<string, unknown>): HTMLElement {
+  return h(
+    'dl',
+    { class: 'meta-grid' },
+    ...Object.entries(record).map(([key, value]) =>
+      h('div', { class: 'meta' }, h('dt', null, key), h('dd', null, formatCell(value))),
+    ),
+  );
+}
+
+function formatCell(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  if (typeof value === 'boolean') {
+    return value ? '✔' : '✘';
+  }
+  return String(value);
 }
 
 function renderText(text: string, mimeType?: string): HTMLElement {
