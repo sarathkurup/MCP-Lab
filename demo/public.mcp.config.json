@@ -1,0 +1,44 @@
+{
+  "servers": [
+    {
+      "id": "deepwiki",
+      "name": "DeepWiki",
+      "transport": "http",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "metadata": {
+        "team": "Public",
+        "tags": ["docs", "read-only"]
+      }
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "transport": "http",
+      "url": "https://huggingface.co/mcp",
+      "metadata": {
+        "team": "Public",
+        "tags": ["models", "resources"]
+      }
+    },
+    {
+      "id": "gitmcp",
+      "name": "GitMCP",
+      "transport": "http",
+      "url": "https://gitmcp.io/modelcontextprotocol/servers",
+      "metadata": {
+        "team": "Public",
+        "tags": ["docs", "older-protocol"]
+      }
+    },
+    {
+      "id": "context7",
+      "name": "Context7",
+      "transport": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "metadata": {
+        "team": "Public",
+        "tags": ["docs", "chained-tools"]
+      }
+    }
+  ]
+}

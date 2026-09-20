@@ -13,7 +13,7 @@ export class McpTestController implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private readonly workbench: Workbench) {
-    this.controller = vscode.tests.createTestController('mcpWorkbench', 'MCP Tests');
+    this.controller = vscode.tests.createTestController('mcpilot', 'MCP Tests');
 
     this.controller.resolveHandler = async () => {
       await this.workbench.tests.discover();

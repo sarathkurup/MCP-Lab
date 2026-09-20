@@ -17,7 +17,7 @@ export const analyticsView: ViewDefinition = {
     if (stats.total === 0) {
       return emptyState(
         'Nothing to measure yet.',
-        'Analytics are computed from the invocation history, so they cover every call made through Workbench - explorer, replay, tests and workflows alike.',
+        'Analytics are computed from the invocation history, so they cover every call made through MCPilot - explorer, replay, tests and workflows alike.',
       );
     }
 

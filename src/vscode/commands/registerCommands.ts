@@ -33,46 +33,46 @@ export function registerCommands(
           return await handler(...args);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          void vscode.window.showErrorMessage(`MCP Workbench: ${message}`);
+          void vscode.window.showErrorMessage(`MCPilot: ${message}`);
           return undefined;
         }
       }),
     );
   };
 
-  register('mcpWorkbench.addServer', () => addServer(deps));
-  register('mcpWorkbench.removeServer', (node?: TreeNode) => removeServer(deps, node));
-  register('mcpWorkbench.connect', (node?: TreeNode) => connect(deps, node));
-  register('mcpWorkbench.disconnect', (node?: TreeNode) => disconnect(deps, node));
-  register('mcpWorkbench.reconnect', (node?: TreeNode) => reconnect(deps, node));
-  register('mcpWorkbench.refresh', () => deps.reloadServers());
-  register('mcpWorkbench.showLogs', () => deps.channels.showLogs());
-  register('mcpWorkbench.showTrace', () => deps.channels.showTrace());
-  register('mcpWorkbench.open', (node?: TreeNode) => openWorkbench(deps, node));
-  register('mcpWorkbench.openItem', (node?: TreeNode) => openItem(deps, node));
-  register('mcpWorkbench.setAuthToken', (node?: TreeNode) => setAuthToken(deps, node));
-  register('mcpWorkbench.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
-  register('mcpWorkbench.showCapabilities', (node?: TreeNode) => showCapabilities(deps, node));
-  register('mcpWorkbench.copyDefinition', (node?: TreeNode) => copyDefinition(deps, node));
-  register('mcpWorkbench.diagnose', (node?: TreeNode) => diagnoseServer(deps, node));
-  register('mcpWorkbench.lint', (node?: TreeNode) => lintServer(deps, node));
-  register('mcpWorkbench.generateTests', (...args: never[]) =>
+  register('mcpilot.addServer', () => addServer(deps));
+  register('mcpilot.removeServer', (node?: TreeNode) => removeServer(deps, node));
+  register('mcpilot.connect', (node?: TreeNode) => connect(deps, node));
+  register('mcpilot.disconnect', (node?: TreeNode) => disconnect(deps, node));
+  register('mcpilot.reconnect', (node?: TreeNode) => reconnect(deps, node));
+  register('mcpilot.refresh', () => deps.reloadServers());
+  register('mcpilot.showLogs', () => deps.channels.showLogs());
+  register('mcpilot.showTrace', () => deps.channels.showTrace());
+  register('mcpilot.open', (node?: TreeNode) => openWorkbench(deps, node));
+  register('mcpilot.openItem', (node?: TreeNode) => openItem(deps, node));
+  register('mcpilot.setAuthToken', (node?: TreeNode) => setAuthToken(deps, node));
+  register('mcpilot.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
+  register('mcpilot.showCapabilities', (node?: TreeNode) => showCapabilities(deps, node));
+  register('mcpilot.copyDefinition', (node?: TreeNode) => copyDefinition(deps, node));
+  register('mcpilot.diagnose', (node?: TreeNode) => diagnoseServer(deps, node));
+  register('mcpilot.lint', (node?: TreeNode) => lintServer(deps, node));
+  register('mcpilot.generateTests', (...args: never[]) =>
     generateTestsCommand(deps, args[0], args[1]),
   );
-  register('mcpWorkbench.saveAsTest', (...args: never[]) => saveAsTest(deps, args[0]));
-  register('mcpWorkbench.analyzeFailure', (...args: never[]) => analyzeFailure(deps, args[0]));
-  register('mcpWorkbench.switchEnvironment', () => switchEnvironment(deps));
-  register('mcpWorkbench.runTests', () => deps.focus({ view: 'tests' }));
-  register('mcpWorkbench.generateDocs', (...args: never[]) =>
+  register('mcpilot.saveAsTest', (...args: never[]) => saveAsTest(deps, args[0]));
+  register('mcpilot.analyzeFailure', (...args: never[]) => analyzeFailure(deps, args[0]));
+  register('mcpilot.switchEnvironment', () => switchEnvironment(deps));
+  register('mcpilot.runTests', () => deps.focus({ view: 'tests' }));
+  register('mcpilot.generateDocs', (...args: never[]) =>
     generateDocumentation(deps, args[0]),
   );
-  register('mcpWorkbench.securityScan', (node?: TreeNode) => securityScan(deps, node));
-  register('mcpWorkbench.compareServers', () => compareServersCommand(deps));
-  register('mcpWorkbench.createServer', () => createServer(deps));
-  register('mcpWorkbench.toolsFromOpenApi', () => generateToolsFromOpenApi());
-  register('mcpWorkbench.startBridge', () => startBridge(deps));
-  register('mcpWorkbench.stopBridge', () => stopBridge(deps));
-  register('mcpWorkbench.copyBridgeConfig', () => copyBridgeConfig(deps));
+  register('mcpilot.securityScan', (node?: TreeNode) => securityScan(deps, node));
+  register('mcpilot.compareServers', () => compareServersCommand(deps));
+  register('mcpilot.createServer', () => createServer(deps));
+  register('mcpilot.toolsFromOpenApi', () => generateToolsFromOpenApi());
+  register('mcpilot.startBridge', () => startBridge(deps));
+  register('mcpilot.stopBridge', () => stopBridge(deps));
+  register('mcpilot.copyBridgeConfig', () => copyBridgeConfig(deps));
 }
 
 // ---------------------------------------------------------------------------
@@ -118,12 +118,12 @@ async function addServer(deps: CommandDeps): Promise<void> {
     [
       {
         label: '$(terminal) Local (stdio)',
-        detail: 'Workbench spawns the server process and talks over stdin/stdout',
+        detail: 'MCPilot spawns the server process and talks over stdin/stdout',
         value: 'stdio' as const,
       },
       {
         label: '$(globe) Remote (streamable HTTP)',
-        detail: 'Workbench POSTs JSON-RPC to an MCP endpoint',
+        detail: 'MCPilot POSTs JSON-RPC to an MCP endpoint',
         value: 'http' as const,
       },
     ],
@@ -273,8 +273,8 @@ async function removeServer(deps: CommandDeps, node?: TreeNode): Promise<void> {
   }
 
   const confirm = await vscode.window.showWarningMessage(
-    `Remove "${config.name}" from MCP Workbench?`,
-    { modal: true, detail: 'The server itself is not touched; only its Workbench entry.' },
+    `Remove "${config.name}" from MCPilot?`,
+    { modal: true, detail: 'The server itself is not touched; only its MCPilot entry.' },
     'Remove',
   );
   if (confirm !== 'Remove') {

@@ -283,7 +283,7 @@ export function generateTypeScriptHandlers(
     `const BASE_URL = process.env.API_BASE_URL ?? ${JSON.stringify(baseUrl)};`,
     '',
     '/**',
-    ' * Generated from an OpenAPI document by MCP Workbench.',
+    ' * Generated from an OpenAPI document by MCPilot.',
     ' * Handlers are thin on purpose: add auth, retries and mapping where marked.',
     ' */',
     'export function registerGeneratedTools(server: McpServer): void {',

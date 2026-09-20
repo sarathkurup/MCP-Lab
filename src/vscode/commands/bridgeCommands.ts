@@ -21,7 +21,7 @@ export async function startBridge(workbench: Workbench): Promise<void> {
   } else if (action === 'Permissions…') {
     await vscode.commands.executeCommand(
       'workbench.action.openSettings',
-      'mcpWorkbench.ai.permissions',
+      'mcpilot.ai.permissions',
     );
   }
 }
@@ -54,7 +54,7 @@ export async function copyBridgeConfig(workbench: Workbench): Promise<void> {
 
   const config = {
     mcpServers: {
-      'mcp-workbench': {
+      'mcpilot': {
         type: 'http',
         url,
         headers: { Authorization: `Bearer ${token}` },

@@ -19,7 +19,7 @@ export class Emitter<T> {
         listener(payload);
       } catch (err) {
         // A misbehaving listener must not break the emitter or its siblings.
-        console.error('[mcp-workbench] event listener threw', err);
+        console.error('[mcpilot] event listener threw', err);
       }
     }
   }

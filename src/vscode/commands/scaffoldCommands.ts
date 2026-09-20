@@ -105,7 +105,7 @@ export async function createServer(workbench: Workbench): Promise<void> {
   const action = await vscode.window.showInformationMessage(
     `Created ${Object.keys(files).length} file(s) in ${root.fsPath}`,
     'Open folder',
-    'Add to Workbench',
+    'Add to MCPilot',
   );
 
   if (action === 'Open folder') {
@@ -113,7 +113,7 @@ export async function createServer(workbench: Workbench): Promise<void> {
     return;
   }
 
-  if (action === 'Add to Workbench') {
+  if (action === 'Add to MCPilot') {
     const created = await workbench.store.add(
       options.transport === 'stdio'
         ? {

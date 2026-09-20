@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 rem ============================================================================
-rem  MCP Workbench - build, package and install into VS Code.
+rem  MCPilot - build, package and install into VS Code.
 rem
 rem  Usage:
 rem    install.cmd                  Install into VS Code (stable)
@@ -14,8 +14,8 @@ rem ============================================================================
 
 cd /d "%~dp0"
 
-set "EXT_ID=mcp-workbench.mcp-workbench"
-set "VSIX=mcp-workbench.vsix"
+set "EXT_ID=mcpilot.mcpilot"
+set "VSIX=mcpilot.vsix"
 set "CODE_CMD="
 set "UNINSTALL="
 
@@ -145,9 +145,9 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo  MCP Workbench installed.
+echo  MCPilot installed.
 echo.
-echo  Restart VS Code, then open the MCP Workbench view in the
+echo  Restart VS Code, then open the MCPilot view in the
 echo  activity bar, or run "MCP: Add Server" from the palette.
 echo.
 echo  To try it against the sample servers, open the demo folder:
@@ -158,7 +158,7 @@ echo ============================================================
 exit /b 0
 
 :usage
-echo MCP Workbench installer
+echo MCPilot installer
 echo.
 echo   install.cmd                       Build, package and install into VS Code
 echo   install.cmd code-insiders         Install into VS Code Insiders instead

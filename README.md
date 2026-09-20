@@ -1,4 +1,4 @@
-# MCP Workbench
+# MCPilot
 
 A development environment for Model Context Protocol servers, inside VS Code —
 and a CLI that runs the same engine in CI.
@@ -33,11 +33,11 @@ That rule is not aspirational. `tests/cli.test.ts` spawns the compiled CLI as a
 real process and drives three MCP servers with no editor present — it would fail
 the moment core grew an editor dependency.
 
-Workbench speaks **both halves** of the protocol: it is a client to the servers
+MCPilot speaks **both halves** of the protocol: it is a client to the servers
 you configure, and a server to the AI clients you connect.
 
 ```
-  Claude Code / Copilot ──MCP──▶ MCP Workbench ──MCP──▶ CMS · Deployment · AWS
+  Claude Code / Copilot ──MCP──▶ MCPilot ──MCP──▶ CMS · Deployment · AWS
                                        │
                                   one gate: classify,
                                   check environment,
@@ -53,7 +53,7 @@ you configure, and a server to the AI clients you connect.
 - A form built from each tool's JSON Schema — nothing is hardcoded. Objects,
   arrays, enums, formats, nullable via `anyOf`, nested structures.
 - Form ⇄ raw JSON, carrying the value across.
-- Validation before the request leaves Workbench; per-field error marking.
+- Validation before the request leaves MCPilot; per-field error marking.
 - Results rendered by shape: uniform arrays become tables, text, markdown,
   images, audio, embedded resources, prompt messages, errors.
 - Every invocation recorded and replayable byte-for-byte.
@@ -61,7 +61,7 @@ you configure, and a server to the AI clients you connect.
 ### Test
 
 - Tests are plain JSON (`**/*.mcp-test.json`) — reviewable, diffable, and
-  runnable in CI without Workbench installed.
+  runnable in CI without MCPilot installed.
 - Assertions use JSONPath-lite: `$.structuredContent.sum`, `$.content[0].text`.
 - `expectError`, `expectToolError`, latency budgets, `skip`.
 - Suites appear in VS Code's own Test Explorer with expected/actual diffs.
@@ -78,10 +78,10 @@ you configure, and a server to the AI clients you connect.
 - **Linter** — `MCP001`–`MCP012`, published as editor diagnostics.
 - **Security scan** — config, catalog, logs and history, looking for leaked
   credentials, PII, unannotated destructive tools and unencrypted transports.
-  Every finding names its evidence, because Workbench cannot read server source
+  Every finding names its evidence, because MCPilot cannot read server source
   and does not pretend to.
 - **Protocol trace** — every JSON-RPC frame in both directions, with round-trip
-  times. **Logs** — Workbench events, server stderr and MCP logging
+  times. **Logs** — MCPilot events, server stderr and MCP logging
   notifications, with credentials masked on the way in.
 
 ### Compose
@@ -120,10 +120,10 @@ you configure, and a server to the AI clients you connect.
 ## The CLI
 
 ```bash
-mcp-workbench test   --config mcp.config.json --junit report.xml
-mcp-workbench lint   --config mcp.config.json --max-warnings 5
-mcp-workbench doctor --config mcp.config.json
-mcp-workbench docs   --config mcp.config.json --out SERVER.md
+mcpilot test   --config mcp.config.json --junit report.xml
+mcpilot lint   --config mcp.config.json --max-warnings 5
+mcpilot doctor --config mcp.config.json
+mcpilot docs   --config mcp.config.json --out SERVER.md
 ```
 
 Exit codes: `0` ok, `1` failures found, `2` could not run. `--json` for
@@ -147,6 +147,33 @@ cd demo
 node ../dist/cli.js doctor --config mcp.config.json --server "CMS MCP"
 ```
 
+### Public servers to point it at
+
+The demo servers have planted faults, so they prove the diagnostics but not the
+UI. These four are real, need no key, and serve traffic nobody staged. Run
+**MCP: Add Server → HTTP** and paste a URL, or point the CLI at the config
+that ships with them:
+
+```bash
+node dist/cli.js doctor --config demo/public.mcp.config.json
+```
+
+| Server | Protocol | Catalog | What it puts in front of the UI |
+| --- | --- | --- | --- |
+| `mcp.deepwiki.com/mcp` | 2025-06-18 | 3 tools | Long markdown answers — rendering and truncation in the explorer. Doctor finds a **real bug** here: a call to a tool that does not exist comes back as success. |
+| `huggingface.co/mcp` | 2025-06-18 | 4 tools, **155 resources** | The only one of the four that fills the Resources panel. Anonymous by default; add a token with **MCP: Set Authentication Token** and the catalog grows. |
+| `gitmcp.io/<owner>/<repo>` | 2025-03-26 | 4–5 tools | Version negotiation against an **older revision**, with a session id on every frame. Tool names are built from the repo, so no two entries look alike. |
+| `mcp.context7.com/mcp` | 2025-06-18 | 2 tools | A two-step chain — `resolve-library-id` feeds `query-docs` — worth recording as a workflow. |
+
+For the auth path without a token of your own, `https://api.githubcopilot.com/mcp/`
+answers **401 with a missing-Authorization message**: the error surface and the
+credential flow, end to end.
+
+Doctor across all four takes about a second and is a fair sample of the drift it
+exists to find — DeepWiki and Context7 advertise `resources` and `prompts` and
+return neither, none of the four support logging, and GitMCP is a revision
+behind. Last verified 2026-09-20; these are other people's servers and may move.
+
 ---
 
 ## Layout
@@ -156,7 +183,7 @@ node ../dist/cli.js doctor --config mcp.config.json --server "CMS MCP"
 | `src/core/protocol.ts` | JSON-RPC envelopes + the MCP schema subset |
 | `src/core/transport/` | `Transport` interface, stdio, streamable HTTP |
 | `src/core/McpClient.ts` | Correlation, handshake, primitives, pagination |
-| `src/core/serverRole.ts` | The **server** half: Workbench as an MCP server |
+| `src/core/serverRole.ts` | The **server** half: MCPilot as an MCP server |
 | `src/core/schema.ts` | JSON Schema → form model, validation, pruning |
 | `src/core/execution.ts` | The one path every invocation takes |
 | `src/core/testing.ts` · `testgen.ts` | Test model, runner, schema-derived generation |

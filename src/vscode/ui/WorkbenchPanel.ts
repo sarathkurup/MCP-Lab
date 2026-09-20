@@ -33,8 +33,8 @@ export class WorkbenchPanel implements vscode.Disposable {
     }
 
     const panel = vscode.window.createWebviewPanel(
-      'mcpWorkbench.panel',
-      'MCP Workbench',
+      'mcpilot.panel',
+      'MCPilot',
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
@@ -95,7 +95,7 @@ export class WorkbenchPanel implements vscode.Disposable {
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="${styleUri}" rel="stylesheet" />
-    <title>MCP Workbench</title>
+    <title>MCPilot</title>
   </head>
   <body>
     <div id="root"></div>

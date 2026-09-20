@@ -28,7 +28,7 @@ jobs:
         run: npm test
 
       # Below here is what a *consumer* repository would run against its own
-      # server, using the published CLI:  npx mcp-workbench <command>
+      # server, using the published CLI:  npx mcpilot <command>
       - name: MCP lint
         run: node dist/cli.js lint --config demo/mcp.config.json --max-warnings 10
         working-directory: .

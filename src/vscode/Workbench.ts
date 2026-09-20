@@ -23,7 +23,7 @@ import { ServerStore } from './storage/ServerStore';
 import { ServersTreeProvider } from './ui/ServersTreeProvider';
 import { WorkbenchPanel } from './ui/WorkbenchPanel';
 
-const HISTORY_KEY = 'mcpWorkbench.history.v1';
+const HISTORY_KEY = 'mcpilot.history.v1';
 
 /**
  * Composition root. Owns every long-lived service and is the only place that
@@ -99,15 +99,15 @@ export class Workbench implements vscode.Disposable {
       ),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (
-          event.affectsConfiguration('mcpWorkbench.servers') ||
-          event.affectsConfiguration('mcpWorkbench.environments')
+          event.affectsConfiguration('mcpilot.servers') ||
+          event.affectsConfiguration('mcpilot.environments')
         ) {
           void this.reloadServers();
         }
-        if (event.affectsConfiguration('mcpWorkbench.trace.maxEntries')) {
+        if (event.affectsConfiguration('mcpilot.trace.maxEntries')) {
           this.trace.setCapacity(config().traceMaxEntries);
         }
-        if (event.affectsConfiguration('mcpWorkbench.redactSecrets')) {
+        if (event.affectsConfiguration('mcpilot.redactSecrets')) {
           this.logs.setRedaction(config().redactSecrets);
         }
       }),
@@ -348,7 +348,7 @@ export function config(): {
   maxReconnectAttempts: number;
   redactSecrets: boolean;
 } {
-  const settings = vscode.workspace.getConfiguration('mcpWorkbench');
+  const settings = vscode.workspace.getConfiguration('mcpilot');
   return {
     requestTimeoutMs: settings.get<number>('requestTimeoutMs', 30_000),
     traceMaxEntries: settings.get<number>('trace.maxEntries', 2000),

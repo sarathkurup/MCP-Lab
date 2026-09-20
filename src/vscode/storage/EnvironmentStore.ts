@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DEFAULT_ENVIRONMENTS, type Environment } from '../../core/environments';
 
-const ACTIVE_KEY = 'mcpWorkbench.activeEnvironment';
+const ACTIVE_KEY = 'mcpilot.activeEnvironment';
 
 /**
  * Environments are workspace-scoped: the same repository checked out twice
@@ -15,7 +15,7 @@ export class EnvironmentStore {
 
   list(): Environment[] {
     const configured = vscode.workspace
-      .getConfiguration('mcpWorkbench')
+      .getConfiguration('mcpilot')
       .get<Environment[]>('environments', []);
     const valid = configured.filter((e) => e && e.id && e.name);
     return valid.length > 0 ? valid : DEFAULT_ENVIRONMENTS;

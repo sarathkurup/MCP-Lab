@@ -12,8 +12,8 @@ export class OutputChannels implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(logs: LogStore, trace: TraceStore) {
-    this.logChannel = vscode.window.createOutputChannel('MCP Workbench');
-    this.traceChannel = vscode.window.createOutputChannel('MCP Workbench: Protocol', 'json');
+    this.logChannel = vscode.window.createOutputChannel('MCPilot');
+    this.traceChannel = vscode.window.createOutputChannel('MCPilot: Protocol', 'json');
 
     this.disposables.push(
       asDisposable(logs.onDidLog((entry) => this.logChannel.appendLine(formatLog(entry)))),

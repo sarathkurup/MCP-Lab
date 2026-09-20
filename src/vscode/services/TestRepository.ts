@@ -59,7 +59,7 @@ export class TestRepository implements vscode.Disposable {
       });
       if (!quiet) {
         void vscode.window.showWarningMessage(
-          `MCP Workbench: could not read ${uri.fsPath}: ${err instanceof Error ? err.message : String(err)}`,
+          `MCPilot: could not read ${uri.fsPath}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }

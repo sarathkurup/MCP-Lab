@@ -320,8 +320,8 @@ function asDisposable(d: { dispose(): void }): vscode.Disposable {
 /** Clicking a leaf opens it in the Workbench panel. */
 export function attachOpenCommand(item: vscode.TreeItem, node: TreeNode): vscode.TreeItem {
   item.command = {
-    command: 'mcpWorkbench.openItem',
-    title: 'Open in MCP Workbench',
+    command: 'mcpilot.openItem',
+    title: 'Open in MCPilot',
     arguments: [node],
   };
   return item;

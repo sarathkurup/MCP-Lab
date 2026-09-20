@@ -103,7 +103,7 @@ export class McpServerRole {
               content: [
                 {
                   type: 'text',
-                  text: `"${name}" was not authorized. MCP Workbench requires a human to approve this operation.`,
+                  text: `"${name}" was not authorized. MCPilot requires a human to approve this operation.`,
                 },
               ],
             } satisfies CallToolResult);
