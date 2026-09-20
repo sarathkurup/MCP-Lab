@@ -53,6 +53,17 @@ const TOOLS = [
   },
 ];
 
+TOOLS.push({
+  name: 'slowQuery',
+  description: 'Waits before answering. Present so latency budgets can be tested.',
+  inputSchema: {
+    type: 'object',
+    properties: { delayMs: { type: 'integer', minimum: 0, maximum: 5000 } },
+    required: [],
+  },
+  annotations: { readOnlyHint: true },
+});
+
 const RESOURCES = [
   {
     uri: 'file:///demo/templates.json',
@@ -72,6 +83,46 @@ const PROMPTS = [
     ],
   },
 ];
+
+/** Minimal schema check: required fields, declared types and enums. */
+function validateAgainstSchema(schema, value) {
+  if (!schema || schema.type !== 'object') {
+    return undefined;
+  }
+  const properties = schema.properties || {};
+
+  for (const name of schema.required || []) {
+    if (value[name] === undefined || value[name] === null || value[name] === '') {
+      return `${name} is required`;
+    }
+  }
+
+  for (const [name, property] of Object.entries(properties)) {
+    const entry = value[name];
+    if (entry === undefined) {
+      continue;
+    }
+    if (property.enum && !property.enum.includes(entry)) {
+      return `${name} must be one of ${property.enum.join(', ')}`;
+    }
+    const expected = property.type;
+    if (!expected) {
+      continue;
+    }
+    const actual = Array.isArray(entry) ? 'array' : entry === null ? 'null' : typeof entry;
+    const matches =
+      expected === 'integer'
+        ? Number.isInteger(entry)
+        : expected === 'number'
+          ? actual === 'number'
+          : expected === actual;
+    if (!matches) {
+      return `${name} must be a ${expected}`;
+    }
+  }
+
+  return undefined;
+}
 
 function createHandler(options = {}) {
   const pageSize = options.pageSize ?? TOOLS.length;
@@ -110,10 +161,18 @@ function createHandler(options = {}) {
       case 'tools/call': {
         const name = params && params.name;
         const args = (params && params.arguments) || {};
-        if (name === 'echo') {
-          if (typeof args.message !== 'string') {
-            return fail(-32602, 'message must be a string');
+
+        // A conforming server enforces its own declared schema, so Workbench's
+        // generated negative cases have something real to assert against.
+        const definition = TOOLS.find((t) => t.name === name);
+        if (definition) {
+          const problem = validateAgainstSchema(definition.inputSchema, args);
+          if (problem) {
+            return fail(-32602, problem);
           }
+        }
+
+        if (name === 'echo') {
           const text = args.shout ? args.message.toUpperCase() : args.message;
           return ok({ content: [{ type: 'text', text }] });
         }
@@ -123,6 +182,15 @@ function createHandler(options = {}) {
             content: [{ type: 'text', text: String(sum) }],
             structuredContent: { sum },
           });
+        }
+        if (name === 'slowQuery') {
+          const delay = typeof args.delayMs === 'number' ? args.delayMs : 50;
+          return new Promise((resolve) =>
+            setTimeout(
+              () => resolve(ok({ content: [{ type: 'text', text: `waited ${delay}ms` }] })),
+              delay,
+            ),
+          );
         }
         if (name === 'deleteEvent') {
           return ok({
@@ -209,9 +277,13 @@ function runStdio() {
             error: { code: -32700, message: String(err) },
           };
         }
-        if (response) {
-          process.stdout.write(JSON.stringify(response) + '\n');
-        }
+        // A handler may answer asynchronously; replies still correlate because
+        // every one carries the request id.
+        Promise.resolve(response).then((settled) => {
+          if (settled) {
+            process.stdout.write(JSON.stringify(settled) + '\n');
+          }
+        });
       }
       newline = buffer.indexOf('\n');
     }

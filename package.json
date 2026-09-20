@@ -130,6 +130,46 @@
         "title": "Copy Definition as JSON",
         "category": "MCP",
         "icon": "$(copy)"
+      },
+      {
+        "command": "mcpWorkbench.diagnose",
+        "title": "Diagnose Server",
+        "category": "MCP",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "mcpWorkbench.lint",
+        "title": "Lint Server",
+        "category": "MCP",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "mcpWorkbench.generateTests",
+        "title": "Generate Tests",
+        "category": "MCP",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "mcpWorkbench.saveAsTest",
+        "title": "Save Invocation as Test",
+        "category": "MCP"
+      },
+      {
+        "command": "mcpWorkbench.analyzeFailure",
+        "title": "Analyze Failure with AI",
+        "category": "MCP"
+      },
+      {
+        "command": "mcpWorkbench.switchEnvironment",
+        "title": "Switch Environment",
+        "category": "MCP",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "mcpWorkbench.runTests",
+        "title": "Run Tests",
+        "category": "MCP",
+        "icon": "$(beaker)"
       }
     ],
     "menus": {
@@ -200,11 +240,38 @@
           "command": "mcpWorkbench.copyDefinition",
           "when": "view == mcpWorkbench.servers && viewItem =~ /^(tool|resource|prompt)$/",
           "group": "inline@1"
+        },
+        {
+          "command": "mcpWorkbench.diagnose",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "1_run@3"
+        },
+        {
+          "command": "mcpWorkbench.lint",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "1_run@4"
+        },
+        {
+          "command": "mcpWorkbench.generateTests",
+          "when": "view == mcpWorkbench.servers && viewItem == tool",
+          "group": "inline@2"
         }
       ],
       "commandPalette": [
         {
           "command": "mcpWorkbench.copyDefinition",
+          "when": "false"
+        },
+        {
+          "command": "mcpWorkbench.openItem",
+          "when": "false"
+        },
+        {
+          "command": "mcpWorkbench.saveAsTest",
+          "when": "false"
+        },
+        {
+          "command": "mcpWorkbench.analyzeFailure",
           "when": "false"
         }
       ]
@@ -268,6 +335,42 @@
               },
               "autoConnect": {
                 "type": "boolean"
+              },
+              "environments": {
+                "type": "object",
+                "description": "Per-environment overrides, keyed by environment id."
+              }
+            }
+          }
+        },
+        "mcpWorkbench.environments": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Environments Workbench can switch between. Leave empty to use the built-in DEV / QC / PROD. A server points at a different target per environment via its `environments` block.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "tier"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "tier": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qc",
+                  "prod"
+                ]
+              },
+              "color": {
+                "type": "string"
               }
             }
           }

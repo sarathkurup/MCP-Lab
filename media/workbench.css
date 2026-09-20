@@ -772,3 +772,188 @@ button {
 .toast-error {
   border-left: 3px solid var(--vscode-editorError-foreground);
 }
+
+/* ---------------------------------------------------------------- doctor */
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.check:last-child {
+  border-bottom: none;
+}
+
+.check-glyph {
+  min-width: 48px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.check-pass .check-glyph {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.check-warn .check-glyph {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.check-fail .check-glyph {
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.check-skip .check-glyph {
+  opacity: 0.4;
+}
+
+.check-body {
+  flex: 1 1 auto;
+}
+
+.check-title {
+  font-weight: 500;
+}
+
+.check-hint {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 2px;
+  max-width: 80ch;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------- tests */
+
+.test-status {
+  min-width: 1.2em;
+  display: inline-block;
+  font-weight: 700;
+}
+
+.test-summary {
+  padding: 6px 10px;
+}
+
+.summary-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.assertions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assertion {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.assertion.failed {
+  color: var(--vscode-editorError-foreground);
+}
+
+.assertion-actual {
+  font-family: var(--mono);
+  opacity: 0.8;
+}
+
+/* ---------------------------------------------------------------- analytics */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.tile {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.tile-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.tile-label {
+  font-size: 11px;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tile-ok .tile-value {
+  color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.tile-warn .tile-value {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.tile-bad .tile-value {
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.bar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 2fr 56px 80px 70px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  background: var(--vscode-editorWidget-background);
+  border-radius: 2px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--vscode-charts-blue, #3794ff);
+}
+
+.bar-fill.bar-warn {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.bar-value {
+  text-align: right;
+  font-family: var(--mono);
+}
+
+.bar-value.bad {
+  color: var(--vscode-editorError-foreground);
+}

@@ -48,7 +48,7 @@ function startHttpServer(options = {}) {
         return;
       }
 
-      const response = handle(message);
+      const maybeResponse = handle(message);
       const headers = { 'content-type': 'application/json' };
       if (message.method === 'initialize') {
         sessionId = 'session-1';
@@ -57,6 +57,7 @@ function startHttpServer(options = {}) {
         headers['mcp-session-id'] = sessionId;
       }
 
+      Promise.resolve(maybeResponse).then((response) => {
       if (!response) {
         res.writeHead(202, sessionId ? { 'mcp-session-id': sessionId } : {}).end();
         return;
@@ -75,6 +76,7 @@ function startHttpServer(options = {}) {
 
       res.writeHead(200, headers);
       res.end(JSON.stringify(response));
+      });
     });
   });
 

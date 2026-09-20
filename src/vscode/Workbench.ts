@@ -1,12 +1,19 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../core/ConnectionManager';
 import { describeTarget } from '../core/config';
+import { resolveForEnvironment, type Environment } from '../core/environments';
 import { ExecutionService } from '../core/execution';
 import { HistoryStore, type HistoryEntry } from '../core/history';
 import { LogStore } from '../core/logging';
+import type { TestCase, TestSuite } from '../core/testing';
 import { TraceStore } from '../core/trace';
 import type { ServerDetail, ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
+import { AiService } from './services/AiService';
+import { LintDiagnostics } from './services/LintDiagnostics';
+import { McpTestController } from './services/McpTestController';
 import { OutputChannels } from './services/OutputChannels';
+import { TestRepository } from './services/TestRepository';
+import { EnvironmentStore } from './storage/EnvironmentStore';
 import { ServerStore } from './storage/ServerStore';
 import { ServersTreeProvider } from './ui/ServersTreeProvider';
 import { WorkbenchPanel } from './ui/WorkbenchPanel';
@@ -27,12 +34,19 @@ export class Workbench implements vscode.Disposable {
   readonly channels: OutputChannels;
   readonly tree: ServersTreeProvider;
   readonly panel: WorkbenchPanel;
+  readonly environments: EnvironmentStore;
+  readonly tests: TestRepository;
+  readonly lintDiagnostics = new LintDiagnostics();
+  readonly ai = new AiService();
+  private testController?: McpTestController;
 
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(readonly context: vscode.ExtensionContext) {
     this.trace = new TraceStore(config().traceMaxEntries);
     this.store = new ServerStore(context);
+    this.environments = new EnvironmentStore(context);
+    this.tests = new TestRepository();
 
     this.history = new HistoryStore({
       load: () => context.workspaceState.get<HistoryEntry[]>(HISTORY_KEY, []),
@@ -65,8 +79,13 @@ export class Workbench implements vscode.Disposable {
       asDisposable(this.logs.onDidLog((entry) => this.panel.emit('log', entry))),
       asDisposable(this.history.onDidChange(() => this.panel.emit('history-changed'))),
       this.store.onDidChange(() => void this.reloadServers()),
+      this.environments.onDidChange(() => void this.reloadServers()),
+      this.tests.onDidChange(() => this.panel.emit('tests-changed')),
       vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('mcpWorkbench.servers')) {
+        if (
+          event.affectsConfiguration('mcpWorkbench.servers') ||
+          event.affectsConfiguration('mcpWorkbench.environments')
+        ) {
           void this.reloadServers();
         }
         if (event.affectsConfiguration('mcpWorkbench.trace.maxEntries')) {
@@ -77,15 +96,74 @@ export class Workbench implements vscode.Disposable {
   }
 
   async reloadServers(): Promise<void> {
-    await this.manager.sync(this.store.list());
+    const environmentId = this.environments.active?.id;
+    // Configs are resolved through the active environment before the manager
+    // ever sees them, so nothing downstream needs to know environments exist.
+    await this.manager.sync(
+      this.store.list().map((server) => resolveForEnvironment(server, environmentId)),
+    );
     this.panel.emit('servers-changed', this.snapshot());
+  }
+
+  /** Switching environment drops every live connection: they point elsewhere now. */
+  async setEnvironment(id: string): Promise<void> {
+    for (const connection of this.manager.list()) {
+      if (connection.status === 'connected') {
+        await connection.disconnect();
+      }
+    }
+    await this.environments.setActive(id);
+    await this.reloadServers();
+  }
+
+  get activeEnvironment(): Environment | undefined {
+    return this.environments.active;
   }
 
   snapshot(): WorkbenchSnapshot {
     return {
       servers: this.manager.list().map((connection) => this.summarize(connection.id)!),
-      environments: [],
+      environments: this.environments.list().map((environment) => ({
+        id: environment.id,
+        name: environment.name,
+        tier: environment.tier,
+        color: environment.color,
+      })),
+      activeEnvironmentId: this.environments.active?.id,
     };
+  }
+
+  /** Attaches the native Test Explorer once the workspace has been scanned. */
+  async startTesting(): Promise<void> {
+    await this.tests.discover();
+    this.testController = new McpTestController(this);
+    this.testController.rebuild();
+    this.disposables.push(this.testController);
+  }
+
+  /**
+   * Picks the server a suite should run against: an explicit name on the test,
+   * then the suite, then the only connected server.
+   */
+  async resolveTestServer(suite: TestSuite, test: TestCase): Promise<string | undefined> {
+    const wanted = test.server ?? suite.server;
+    const connections = this.manager.list();
+
+    if (wanted) {
+      const match = connections.find(
+        (c) => c.id === wanted || c.config.name.toLowerCase() === wanted.toLowerCase(),
+      );
+      if (!match) {
+        return undefined;
+      }
+      if (match.status !== 'connected') {
+        await match.connect().catch(() => undefined);
+      }
+      return match.status === 'connected' ? match.id : undefined;
+    }
+
+    const connected = connections.filter((c) => c.status === 'connected');
+    return connected.length === 1 ? connected[0].id : connected[0]?.id;
   }
 
   summarize(serverId: string): ServerSummary | undefined {
@@ -110,6 +188,7 @@ export class Workbench implements vscode.Disposable {
           }
         : undefined,
       protocolVersion: connection.protocolVersion,
+      environmentId: connection.config.environmentId,
       capabilities: connection.capabilities,
       instructions: connection.instructions,
       counts: {
@@ -154,6 +233,9 @@ export class Workbench implements vscode.Disposable {
     this.tree.dispose();
     this.channels.dispose();
     this.store.dispose();
+    this.environments.dispose();
+    this.tests.dispose();
+    this.lintDiagnostics.dispose();
     this.panel.dispose();
     void this.manager.disposeAll();
   }

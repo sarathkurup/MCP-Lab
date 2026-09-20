@@ -1,3 +1,5 @@
+import type { EnvironmentOverride } from './environments';
+
 export type TransportKind = 'stdio' | 'http';
 
 /** Where a server definition came from, which decides whether it can be edited. */
@@ -20,6 +22,11 @@ export interface ServerConfig {
 
   autoConnect?: boolean;
   source?: ConfigSource;
+
+  /** Per-environment overrides, keyed by environment id. */
+  environments?: Record<string, EnvironmentOverride>;
+  /** The environment this resolved config was built for, set by resolveForEnvironment. */
+  environmentId?: string;
 }
 
 export interface ValidationIssue {

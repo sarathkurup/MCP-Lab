@@ -23,8 +23,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     `MCP Workbench activated with ${workbench.manager.list().length} server(s)`,
   );
 
-  // Auto-connect runs detached: a slow or unreachable server must not hold up activation.
+  // Auto-connect and workspace test discovery both run detached: neither a slow
+  // server nor a large workspace should hold up activation.
   void workbench.manager.connectAutoStart();
+  void workbench.startTesting();
 }
 
 export async function deactivate(): Promise<void> {

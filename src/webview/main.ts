@@ -2,9 +2,12 @@ import { RpcClient, type HostMessage, type ViewMessage } from '../shared/rpc';
 import type { ServerSummary, WorkbenchSnapshot } from '../shared/viewModels';
 import type { AppContext, AppState, ViewDefinition } from './app';
 import { clear, h } from './dom';
+import { analyticsView } from './views/analytics';
+import { doctorView } from './views/doctor';
 import { explorerView } from './views/explorer';
 import { historyView } from './views/history';
 import { logsView } from './views/logs';
+import { testsView } from './views/tests';
 import { traceView } from './views/trace';
 
 declare function acquireVsCodeApi(): {
@@ -24,7 +27,15 @@ window.addEventListener('message', (event) => {
   }
 });
 
-const VIEWS: ViewDefinition[] = [explorerView, historyView, traceView, logsView];
+const VIEWS: ViewDefinition[] = [
+  explorerView,
+  historyView,
+  testsView,
+  doctorView,
+  traceView,
+  logsView,
+  analyticsView,
+];
 
 const persisted = (vscode.getState() ?? {}) as Partial<AppState>;
 

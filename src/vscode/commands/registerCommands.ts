@@ -2,6 +2,15 @@ import * as vscode from 'vscode';
 import { describeTarget, validateServerConfig, type ServerConfig } from '../../core/config';
 import type { TreeNode } from '../ui/ServersTreeProvider';
 import type { Workbench } from '../Workbench';
+import {
+  analyzeFailure,
+  diagnoseServer,
+  generateTestsCommand,
+  lintServer,
+  saveAsTest,
+  switchEnvironment,
+} from './analysisCommands';
+import { openJsonDocument, resolveServerId } from './helpers';
 
 /** Commands operate on the whole Workbench rather than a hand-picked slice. */
 type CommandDeps = Workbench;
@@ -38,6 +47,15 @@ export function registerCommands(
   register('mcpWorkbench.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
   register('mcpWorkbench.showCapabilities', (node?: TreeNode) => showCapabilities(deps, node));
   register('mcpWorkbench.copyDefinition', (node?: TreeNode) => copyDefinition(deps, node));
+  register('mcpWorkbench.diagnose', (node?: TreeNode) => diagnoseServer(deps, node));
+  register('mcpWorkbench.lint', (node?: TreeNode) => lintServer(deps, node));
+  register('mcpWorkbench.generateTests', (...args: never[]) =>
+    generateTestsCommand(deps, args[0], args[1]),
+  );
+  register('mcpWorkbench.saveAsTest', (...args: never[]) => saveAsTest(deps, args[0]));
+  register('mcpWorkbench.analyzeFailure', (...args: never[]) => analyzeFailure(deps, args[0]));
+  register('mcpWorkbench.switchEnvironment', () => switchEnvironment(deps));
+  register('mcpWorkbench.runTests', () => deps.focus({ view: 'tests' }));
 }
 
 // ---------------------------------------------------------------------------
@@ -346,43 +364,3 @@ async function copyDefinition(deps: CommandDeps, node?: TreeNode): Promise<void>
   void vscode.window.showInformationMessage('MCP: definition copied to clipboard.');
 }
 
-async function openJsonDocument(payload: unknown): Promise<void> {
-  const doc = await vscode.workspace.openTextDocument({
-    content: JSON.stringify(payload, null, 2),
-    language: 'json',
-  });
-  await vscode.window.showTextDocument(doc, { preview: true });
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function resolveServerId(
-  deps: CommandDeps,
-  node: TreeNode | undefined,
-  placeHolder: string,
-): Promise<string | undefined> {
-  if (node?.serverId) {
-    return node.serverId;
-  }
-
-  const connections = deps.manager.list();
-  if (connections.length === 0) {
-    throw new Error('No servers configured yet. Run "MCP: Add Server" first.');
-  }
-  if (connections.length === 1) {
-    return connections[0].id;
-  }
-
-  const picked = await vscode.window.showQuickPick(
-    connections.map((c) => ({
-      label: c.config.name,
-      description: c.status,
-      detail: describeTarget(c.config),
-      value: c.id,
-    })),
-    { placeHolder },
-  );
-  return picked?.value;
-}

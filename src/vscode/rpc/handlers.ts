@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
+import { diagnose } from '../../core/doctor';
+import { classifyTool, guard } from '../../core/environments';
 import { ValidationFailure } from '../../core/execution';
+import { lint } from '../../core/linter';
+import { TestRunner, type SuiteResult, type TestSuite } from '../../core/testing';
 import type { ExecutionView } from '../../shared/viewModels';
 import type { Workbench } from '../Workbench';
 
@@ -141,6 +145,106 @@ export function registerRpcHandlers(workbench: Workbench): void {
     return true;
   });
 
+  // -- analytics -------------------------------------------------------------
+
+  router.on('analytics', (params) => {
+    const { serverId } = (params ?? {}) as { serverId?: string };
+    return workbench.history.stats(serverId);
+  });
+
+  // -- environments ----------------------------------------------------------
+
+  router.on('setEnvironment', async (params) => {
+    const { id } = params as { id: string };
+    await workbench.setEnvironment(id);
+    return workbench.snapshot();
+  });
+
+  // -- tests -----------------------------------------------------------------
+
+  router.on('tests', async () => {
+    const suites = await workbench.tests.discover();
+    return suites;
+  });
+
+  router.on('runTests', async (params) => {
+    const { serverId, sourceUri } = (params ?? {}) as {
+      serverId?: string;
+      sourceUri?: string;
+    };
+    const runner = new TestRunner(workbench.execution);
+    const suites: TestSuite[] = sourceUri
+      ? [workbench.tests.get(sourceUri)].filter((s): s is TestSuite => !!s)
+      : workbench.tests.list();
+
+    const results: SuiteResult[] = [];
+    for (const suite of suites) {
+      const target = serverId ?? (await workbench.resolveTestServer(suite, suite.tests[0] ?? { name: '' }));
+      if (!target) {
+        continue;
+      }
+      results.push(
+        await runner.runSuite(suite, target, {
+          onResult: (result) => workbench.panel.emit('test-result', result),
+        }),
+      );
+    }
+    return results;
+  });
+
+  router.on('openTestFile', async (params) => {
+    const { sourceUri } = params as { sourceUri: string };
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(sourceUri));
+    await vscode.window.showTextDocument(doc);
+    return true;
+  });
+
+  router.on('generateTests', async (params) => {
+    const { serverId, toolName } = params as { serverId: string; toolName: string };
+    await vscode.commands.executeCommand('mcpWorkbench.generateTests', serverId, toolName);
+    return true;
+  });
+
+  // -- doctor & linter -------------------------------------------------------
+
+  router.on('diagnose', async (params) => {
+    const { serverId, probe } = params as { serverId: string; probe?: boolean };
+    const connection = workbench.manager.get(serverId);
+    if (!connection) {
+      throw new Error(`Unknown server "${serverId}"`);
+    }
+    return diagnose(connection, {
+      probe,
+      testedTargets: workbench.tests.list().length ? workbench.tests.testedTargets() : undefined,
+      hasCredential: !!(await workbench.store.getAuthToken(serverId)),
+    });
+  });
+
+  router.on('lint', async (params) => {
+    const { serverId, publish } = params as { serverId: string; publish?: boolean };
+    const connection = workbench.manager.get(serverId);
+    if (!connection) {
+      throw new Error(`Unknown server "${serverId}"`);
+    }
+    const findings = lint({
+      tools: connection.catalog.tools,
+      resources: connection.catalog.resources,
+      prompts: connection.catalog.prompts,
+      testedTargets: workbench.tests.list().length ? workbench.tests.testedTargets() : undefined,
+    });
+    if (publish) {
+      const anchored = await workbench.lintDiagnostics.publish(findings, connection.config.name);
+      return { findings, anchored };
+    }
+    return { findings, anchored: 0 };
+  });
+
+  router.on('runFix', async (params) => {
+    const { command, serverId } = params as { command: string; serverId?: string };
+    await vscode.commands.executeCommand(command, serverId ? { serverId } : undefined);
+    return true;
+  });
+
   // -- placeholders fulfilled by later phases --------------------------------
 
   router.on('analyzeFailure', async (params) => {
@@ -161,26 +265,44 @@ function toView(result: { entry: ExecutionView['entry']; error?: unknown }): Exe
 }
 
 /**
- * Destructive tools get an explicit confirmation. Phase 12 extends this with
- * environment tiers; the hook lives here so there is exactly one gate.
+ * The single gate every invocation passes through: classify the tool, ask the
+ * environment what that means, and confirm when it matters. Production writes
+ * are stopped even when the tool carries no annotations at all.
  */
-async function confirmIfRisky(
+export async function confirmIfRisky(
   workbench: Workbench,
   serverId: string,
   toolName: string,
 ): Promise<boolean> {
   const connection = workbench.manager.get(serverId);
   const tool = connection?.catalog.tools.find((t) => t.name === toolName);
-  const destructive = tool?.annotations?.destructiveHint === true;
-  if (!destructive) {
+  if (!tool) {
     return true;
   }
 
+  const environment = workbench.activeEnvironment;
+  const risk = classifyTool(tool);
+  const decision = guard(risk, environment?.tier);
+  if (!decision.confirm) {
+    return true;
+  }
+
+  const target =
+    connection?.config.transport === 'http' ? connection.config.url : connection?.config.command;
   const choice = await vscode.window.showWarningMessage(
-    `"${toolName}" is annotated as destructive.`,
+    decision.severity === 'danger'
+      ? `⚠️ ${toolName} — ${environment?.name ?? 'current environment'}`
+      : `Run "${toolName}"?`,
     {
       modal: true,
-      detail: `Server: ${connection?.config.name}\nTarget: ${connection?.config.transport === 'http' ? connection.config.url : connection?.config.command}\n\nThis operation may change or delete data.`,
+      detail: [
+        decision.reason,
+        '',
+        `Server: ${connection?.config.name}`,
+        `Environment: ${environment?.name ?? 'none'}`,
+        `Target: ${target ?? 'unknown'}`,
+        `Classification: ${risk}`,
+      ].join('\n'),
     },
     'Run anyway',
   );

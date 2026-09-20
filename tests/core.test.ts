@@ -63,7 +63,7 @@ describe('stdio transport', () => {
     const tools = await client.listTools();
     assert.deepEqual(
       tools.map((t) => t.name),
-      ['echo', 'add', 'deleteEvent'],
+      ['echo', 'add', 'deleteEvent', 'slowQuery'],
     );
 
     const echoed = await client.callTool('echo', { message: 'hello', shout: true });
@@ -99,7 +99,7 @@ describe('stdio transport', () => {
     );
     await client.initialize();
     const tools = await client.listTools();
-    assert.equal(tools.length, 3, 'all pages were collected');
+    assert.equal(tools.length, 4, 'all pages were collected');
     await client.close();
   });
 
@@ -141,7 +141,7 @@ describe('streamable http transport', () => {
       assert.equal(result.serverInfo.name, 'demo-mcp');
 
       const tools = await client.listTools();
-      assert.equal(tools.length, 3);
+      assert.equal(tools.length, 4);
 
       const echoed = await client.callTool('echo', { message: 'over http' });
       assert.equal((echoed.content[0] as { text: string }).text, 'over http');
@@ -224,7 +224,7 @@ describe('connection manager', () => {
     await manager.connect('demo');
     const connection = manager.get('demo');
     assert.equal(connection?.status, 'connected');
-    assert.equal(connection?.catalog.tools.length, 3);
+    assert.equal(connection?.catalog.tools.length, 4);
     assert.equal(connection?.catalog.prompts.length, 1);
     assert.deepEqual(statuses, ['connecting', 'connected']);
 
