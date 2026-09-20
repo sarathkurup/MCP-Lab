@@ -19,27 +19,47 @@ const problemReporter = {
   },
 };
 
-async function main() {
-  const ctx = await esbuild.context({
+/** The extension host bundle (node) and the webview bundle (browser) are built
+ *  separately: they share the `src/core` and `src/shared` sources but nothing else. */
+const targets = [
+  {
     entryPoints: ['src/vscode/extension.ts'],
-    bundle: true,
-    format: 'cjs',
-    minify: production,
-    sourcemap: !production,
-    sourcesContent: false,
+    outfile: 'dist/extension.js',
     platform: 'node',
     target: 'node20',
-    outfile: 'dist/extension.js',
+    format: 'cjs',
     external: ['vscode'],
-    logLevel: 'silent',
-    plugins: [problemReporter],
-  });
+  },
+  {
+    entryPoints: ['src/webview/main.ts'],
+    outfile: 'dist/webview.js',
+    platform: 'browser',
+    target: 'es2022',
+    format: 'iife',
+    external: [],
+  },
+];
+
+async function main() {
+  const contexts = await Promise.all(
+    targets.map((target) =>
+      esbuild.context({
+        ...target,
+        bundle: true,
+        minify: production,
+        sourcemap: !production,
+        sourcesContent: false,
+        logLevel: 'silent',
+        plugins: [problemReporter],
+      }),
+    ),
+  );
 
   if (watch) {
-    await ctx.watch();
+    await Promise.all(contexts.map((ctx) => ctx.watch()));
   } else {
-    await ctx.rebuild();
-    await ctx.dispose();
+    await Promise.all(contexts.map((ctx) => ctx.rebuild()));
+    await Promise.all(contexts.map((ctx) => ctx.dispose()));
   }
 }
 

@@ -1,17 +1,10 @@
 import * as vscode from 'vscode';
-import type { ConnectionManager } from '../../core/ConnectionManager';
 import { describeTarget, validateServerConfig, type ServerConfig } from '../../core/config';
-import type { OutputChannels } from '../services/OutputChannels';
-import type { ServerStore } from '../storage/ServerStore';
-import type { ServersTreeProvider, TreeNode } from '../ui/ServersTreeProvider';
+import type { TreeNode } from '../ui/ServersTreeProvider';
+import type { Workbench } from '../Workbench';
 
-export interface CommandDeps {
-  manager: ConnectionManager;
-  store: ServerStore;
-  tree: ServersTreeProvider;
-  channels: OutputChannels;
-  reloadServers: () => Promise<void>;
-}
+/** Commands operate on the whole Workbench rather than a hand-picked slice. */
+type CommandDeps = Workbench;
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -39,10 +32,46 @@ export function registerCommands(
   register('mcpWorkbench.refresh', () => deps.reloadServers());
   register('mcpWorkbench.showLogs', () => deps.channels.showLogs());
   register('mcpWorkbench.showTrace', () => deps.channels.showTrace());
+  register('mcpWorkbench.open', (node?: TreeNode) => openWorkbench(deps, node));
+  register('mcpWorkbench.openItem', (node?: TreeNode) => openItem(deps, node));
   register('mcpWorkbench.setAuthToken', (node?: TreeNode) => setAuthToken(deps, node));
   register('mcpWorkbench.clearAuthToken', (node?: TreeNode) => clearAuthToken(deps, node));
   register('mcpWorkbench.showCapabilities', (node?: TreeNode) => showCapabilities(deps, node));
   register('mcpWorkbench.copyDefinition', (node?: TreeNode) => copyDefinition(deps, node));
+}
+
+// ---------------------------------------------------------------------------
+// Workbench panel
+// ---------------------------------------------------------------------------
+
+function openWorkbench(deps: CommandDeps, node?: TreeNode): void {
+  deps.focus({ serverId: node?.serverId, view: 'explorer' });
+}
+
+/** Opening a tree item jumps straight to it in the explorer. */
+function openItem(deps: CommandDeps, node?: TreeNode): void {
+  if (!node) {
+    deps.focus({});
+    return;
+  }
+  if (node.kind === 'tool') {
+    deps.focus({ serverId: node.serverId, view: 'explorer', selection: { kind: 'tool', name: node.tool.name } });
+    return;
+  }
+  if (node.kind === 'resource') {
+    const uri = 'uri' in node.resource ? node.resource.uri : node.resource.uriTemplate;
+    deps.focus({ serverId: node.serverId, view: 'explorer', selection: { kind: 'resource', name: uri } });
+    return;
+  }
+  if (node.kind === 'prompt') {
+    deps.focus({
+      serverId: node.serverId,
+      view: 'explorer',
+      selection: { kind: 'prompt', name: node.prompt.name },
+    });
+    return;
+  }
+  deps.focus({ serverId: node.serverId, view: 'explorer' });
 }
 
 // ---------------------------------------------------------------------------

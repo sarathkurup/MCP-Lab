@@ -126,11 +126,11 @@ export class ServersTreeProvider
       case 'group':
         return groupItem(node, connection);
       case 'tool':
-        return toolItem(node);
+        return attachOpenCommand(toolItem(node), node);
       case 'resource':
-        return resourceItem(node);
+        return attachOpenCommand(resourceItem(node), node);
       case 'prompt':
-        return promptItem(node);
+        return attachOpenCommand(promptItem(node), node);
     }
   }
 
@@ -315,4 +315,14 @@ function firstLine(value?: string): string | undefined {
 
 function asDisposable(d: { dispose(): void }): vscode.Disposable {
   return new vscode.Disposable(() => d.dispose());
+}
+
+/** Clicking a leaf opens it in the Workbench panel. */
+export function attachOpenCommand(item: vscode.TreeItem, node: TreeNode): vscode.TreeItem {
+  item.command = {
+    command: 'mcpWorkbench.openItem',
+    title: 'Open in MCP Workbench',
+    arguments: [node],
+  };
+  return item;
 }

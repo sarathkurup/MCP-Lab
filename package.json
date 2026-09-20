@@ -50,6 +50,17 @@
     ],
     "commands": [
       {
+        "command": "mcpWorkbench.open",
+        "title": "Open Workbench",
+        "category": "MCP",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "mcpWorkbench.openItem",
+        "title": "Open in Workbench",
+        "category": "MCP"
+      },
+      {
         "command": "mcpWorkbench.addServer",
         "title": "Add Server",
         "category": "MCP",
@@ -123,6 +134,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "mcpWorkbench.open",
+          "when": "view == mcpWorkbench.servers",
+          "group": "navigation@0"
+        },
         {
           "command": "mcpWorkbench.addServer",
           "when": "view == mcpWorkbench.servers",
@@ -264,7 +280,7 @@
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.json --outDir out && node --test out/tests/core.test.js",
+    "test": "tsc -p tsconfig.json --outDir out && node --test \"out/tests/*.test.js\"",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
