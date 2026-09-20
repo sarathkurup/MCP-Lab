@@ -1,0 +1,276 @@
+{
+  "name": "mcp-workbench",
+  "displayName": "MCP Workbench",
+  "description": "A development environment for Model Context Protocol servers: connect, explore, execute, test and debug — without leaving VS Code.",
+  "version": "0.1.0",
+  "publisher": "mcp-workbench",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Other",
+    "Testing",
+    "Debuggers"
+  ],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "ai",
+    "tools",
+    "inspector"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mcpWorkbench",
+          "title": "MCP Workbench",
+          "icon": "media/mcp.svg"
+        }
+      ]
+    },
+    "views": {
+      "mcpWorkbench": [
+        {
+          "id": "mcpWorkbench.servers",
+          "name": "Servers",
+          "icon": "media/mcp.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "mcpWorkbench.servers",
+        "contents": "No MCP servers configured yet.\n[Add Server](command:mcpWorkbench.addServer)\nWorkbench connects to local (stdio) and remote (streamable HTTP) MCP servers."
+      }
+    ],
+    "commands": [
+      {
+        "command": "mcpWorkbench.addServer",
+        "title": "Add Server",
+        "category": "MCP",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mcpWorkbench.removeServer",
+        "title": "Remove Server",
+        "category": "MCP",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "mcpWorkbench.connect",
+        "title": "Connect",
+        "category": "MCP",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "mcpWorkbench.disconnect",
+        "title": "Disconnect",
+        "category": "MCP",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "mcpWorkbench.reconnect",
+        "title": "Reconnect",
+        "category": "MCP",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "mcpWorkbench.refresh",
+        "title": "Refresh",
+        "category": "MCP",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mcpWorkbench.showLogs",
+        "title": "Show Logs",
+        "category": "MCP",
+        "icon": "$(output)"
+      },
+      {
+        "command": "mcpWorkbench.showTrace",
+        "title": "Show Protocol Trace",
+        "category": "MCP",
+        "icon": "$(search)"
+      },
+      {
+        "command": "mcpWorkbench.setAuthToken",
+        "title": "Set Authentication Token",
+        "category": "MCP",
+        "icon": "$(key)"
+      },
+      {
+        "command": "mcpWorkbench.clearAuthToken",
+        "title": "Clear Authentication Token",
+        "category": "MCP"
+      },
+      {
+        "command": "mcpWorkbench.showCapabilities",
+        "title": "Show Server Capabilities",
+        "category": "MCP",
+        "icon": "$(info)"
+      },
+      {
+        "command": "mcpWorkbench.copyDefinition",
+        "title": "Copy Definition as JSON",
+        "category": "MCP",
+        "icon": "$(copy)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mcpWorkbench.addServer",
+          "when": "view == mcpWorkbench.servers",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mcpWorkbench.refresh",
+          "when": "view == mcpWorkbench.servers",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mcpWorkbench.showTrace",
+          "when": "view == mcpWorkbench.servers",
+          "group": "navigation@3"
+        },
+        {
+          "command": "mcpWorkbench.showLogs",
+          "when": "view == mcpWorkbench.servers",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mcpWorkbench.connect",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^server:(disconnected|error)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "mcpWorkbench.disconnect",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "inline@1"
+        },
+        {
+          "command": "mcpWorkbench.reconnect",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^server:/",
+          "group": "1_run@1"
+        },
+        {
+          "command": "mcpWorkbench.showCapabilities",
+          "when": "view == mcpWorkbench.servers && viewItem == server:connected",
+          "group": "1_run@2"
+        },
+        {
+          "command": "mcpWorkbench.setAuthToken",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^server:/",
+          "group": "2_auth@1"
+        },
+        {
+          "command": "mcpWorkbench.clearAuthToken",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^server:/",
+          "group": "2_auth@2"
+        },
+        {
+          "command": "mcpWorkbench.removeServer",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^server:/",
+          "group": "9_danger@1"
+        },
+        {
+          "command": "mcpWorkbench.copyDefinition",
+          "when": "view == mcpWorkbench.servers && viewItem =~ /^(tool|resource|prompt)$/",
+          "group": "inline@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mcpWorkbench.copyDefinition",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MCP Workbench",
+      "properties": {
+        "mcpWorkbench.requestTimeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Timeout in milliseconds for a single MCP request."
+        },
+        "mcpWorkbench.trace.maxEntries": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 100,
+          "description": "Maximum number of protocol trace entries kept in memory per session."
+        },
+        "mcpWorkbench.servers": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Workspace-shared MCP servers. Servers added through the UI are stored separately and are not written here. Secrets must never be placed in this setting - use **MCP: Set Authentication Token** instead.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "transport"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "transport": {
+                "type": "string",
+                "enum": [
+                  "stdio",
+                  "http"
+                ]
+              },
+              "command": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cwd": {
+                "type": "string"
+              },
+              "env": {
+                "type": "object"
+              },
+              "url": {
+                "type": "string"
+              },
+              "headers": {
+                "type": "object"
+              },
+              "autoConnect": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.json --outDir out && node --test out/tests/core.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}

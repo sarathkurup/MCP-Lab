@@ -1,0 +1,121 @@
+import * as vscode from 'vscode';
+import { deriveServerId, validateServerConfig, type ServerConfig } from '../../core/config';
+
+const STATE_KEY = 'mcpWorkbench.servers.v1';
+const SECRET_PREFIX = 'mcpWorkbench.auth.';
+
+/**
+ * Persistence for server definitions. Two sources are merged: servers the user
+ * added through the UI (global state) and servers declared in workspace
+ * settings. Credentials live in SecretStorage and never touch either.
+ */
+export class ServerStore {
+  private readonly changed = new vscode.EventEmitter<void>();
+  readonly onDidChange = this.changed.event;
+
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
+  /** UI-added servers plus settings-declared ones, settings losing on id clash. */
+  list(): ServerConfig[] {
+    const user = this.listUserServers();
+    const ids = new Set(user.map((s) => s.id));
+    const fromSettings = this.listSettingsServers().filter((s) => !ids.has(s.id));
+    return [...user, ...fromSettings].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  get(serverId: string): ServerConfig | undefined {
+    return this.list().find((s) => s.id === serverId);
+  }
+
+  private listUserServers(): ServerConfig[] {
+    const stored = this.context.globalState.get<ServerConfig[]>(STATE_KEY, []);
+    return stored.map((s) => ({ ...s, source: 'user' as const }));
+  }
+
+  private listSettingsServers(): ServerConfig[] {
+    const raw = vscode.workspace
+      .getConfiguration('mcpWorkbench')
+      .get<Partial<ServerConfig>[]>('servers', []);
+
+    const configs: ServerConfig[] = [];
+    const taken = new Set<string>();
+    for (const entry of raw) {
+      const issues = validateServerConfig(entry);
+      if (issues.length > 0) {
+        continue;
+      }
+      const id = deriveServerId(entry.name!, taken);
+      taken.add(id);
+      configs.push({ ...(entry as ServerConfig), id, source: 'settings' });
+    }
+    return configs;
+  }
+
+  async add(config: Omit<ServerConfig, 'id' | 'source'>): Promise<ServerConfig> {
+    const taken = this.list().map((s) => s.id);
+    const created: ServerConfig = {
+      ...config,
+      id: deriveServerId(config.name, taken),
+      source: 'user',
+    };
+    const user = this.listUserServers();
+    await this.context.globalState.update(STATE_KEY, [...user, stripSource(created)]);
+    this.changed.fire();
+    return created;
+  }
+
+  async update(config: ServerConfig): Promise<void> {
+    const user = this.listUserServers();
+    const index = user.findIndex((s) => s.id === config.id);
+    if (index === -1) {
+      throw new Error('Only servers added in Workbench can be edited here.');
+    }
+    user[index] = config;
+    await this.context.globalState.update(STATE_KEY, user.map(stripSource));
+    this.changed.fire();
+  }
+
+  async remove(serverId: string): Promise<void> {
+    const user = this.listUserServers();
+    const next = user.filter((s) => s.id !== serverId);
+    if (next.length === user.length) {
+      throw new Error(
+        'This server is declared in settings. Remove it from "mcpWorkbench.servers" instead.',
+      );
+    }
+    await this.context.globalState.update(STATE_KEY, next.map(stripSource));
+    await this.clearAuthToken(serverId);
+    this.changed.fire();
+  }
+
+  // -------------------------------------------------------------------------
+  // Secrets
+  // -------------------------------------------------------------------------
+
+  async getAuthToken(serverId: string): Promise<string | undefined> {
+    return this.context.secrets.get(SECRET_PREFIX + serverId);
+  }
+
+  async setAuthToken(serverId: string, token: string): Promise<void> {
+    await this.context.secrets.store(SECRET_PREFIX + serverId, token);
+  }
+
+  async clearAuthToken(serverId: string): Promise<void> {
+    await this.context.secrets.delete(SECRET_PREFIX + serverId);
+  }
+
+  /** Authorization header for a server, or nothing if no token is stored. */
+  async authHeaders(config: ServerConfig): Promise<Record<string, string>> {
+    const token = await this.getAuthToken(config.id);
+    return token ? { authorization: `Bearer ${token}` } : {};
+  }
+
+  dispose(): void {
+    this.changed.dispose();
+  }
+}
+
+function stripSource(config: ServerConfig): ServerConfig {
+  const { source: _source, ...rest } = config;
+  return rest as ServerConfig;
+}
