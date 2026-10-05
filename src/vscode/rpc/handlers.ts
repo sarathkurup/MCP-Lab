@@ -218,7 +218,8 @@ export function registerRpcHandlers(lab: McpLab): void {
     return diagnose(connection, {
       probe,
       testedTargets: lab.tests.list().length ? lab.tests.testedTargets() : undefined,
-      hasCredential: !!(await lab.store.getAuthToken(serverId)),
+      // A pasted token or an OAuth sign-in both count as a stored credential.
+      hasCredential: !!(await lab.store.getAuthToken(serverId)) || !!lab.oauth.session(serverId),
     });
   });
 
@@ -262,7 +263,7 @@ export function registerRpcHandlers(lab: McpLab): void {
       prompts: connection.catalog.prompts,
       logs: lab.logs.query({ serverId }),
       history: lab.history.list({ serverId }),
-      hasStoredCredential: !!(await lab.store.getAuthToken(serverId)),
+      hasStoredCredential: !!(await lab.store.getAuthToken(serverId)) || !!lab.oauth.session(serverId),
       environmentTier: lab.activeEnvironment?.tier,
     });
   });

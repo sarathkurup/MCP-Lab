@@ -10,7 +10,7 @@
       "name": "Sarath Kumar"
     }
   ],
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "sarathkumar",
   "license": "MIT",
   "repository": {
@@ -54,7 +54,9 @@
     "copilot"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onUri"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -77,7 +79,7 @@
     "viewsWelcome": [
       {
         "view": "mcplab.servers",
-        "contents": "No MCP servers configured yet.\n[Add Server](command:mcplab.addServer)\nMCP Lab connects to local (stdio) and remote (streamable HTTP) MCP servers."
+        "contents": "No MCP servers configured yet.\n[Add Server](command:mcplab.addServer)\nMCP Lab connects to local (stdio) and remote (streamable HTTP) MCP servers.\nConnecting to an organisation's MCP server with OAuth? Configure it as a project, then:\n[Select Project](command:mcplab.selectProject)"
       }
     ],
     "commands": [
@@ -153,12 +155,49 @@
       },
       {
         "command": "mcplab.signIn",
-        "title": "Sign In (OAuth)",
-        "category": "MCP"
+        "title": "Sign In",
+        "category": "MCP",
+        "icon": "$(sign-in)"
       },
       {
         "command": "mcplab.signOut",
-        "title": "Sign Out (OAuth)",
+        "title": "Sign Out",
+        "category": "MCP",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "mcplab.selectProject",
+        "title": "Select Project",
+        "category": "MCP",
+        "icon": "$(project)"
+      },
+      {
+        "command": "mcplab.refreshTools",
+        "title": "Refresh Tools",
+        "category": "MCP",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mcplab.reauthenticate",
+        "title": "Reauthenticate",
+        "category": "MCP",
+        "icon": "$(key)"
+      },
+      {
+        "command": "mcplab.showAuthDiagnostics",
+        "title": "Show Authentication Diagnostics",
+        "category": "MCP",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "mcplab.showAuthLog",
+        "title": "Show Authentication Log",
+        "category": "MCP",
+        "icon": "$(output)"
+      },
+      {
+        "command": "mcplab.storeClientSecret",
+        "title": "Store OAuth Client Secret (Confidential Clients Only)",
         "category": "MCP"
       },
       {
@@ -169,7 +208,7 @@
       },
       {
         "command": "mcplab.copyDefinition",
-        "title": "Copy Definition as JSON",
+        "title": "Copy Tool Definition",
         "category": "MCP",
         "icon": "$(copy)"
       },
@@ -286,17 +325,22 @@
           "command": "mcplab.showLogs",
           "when": "view == mcplab.servers",
           "group": "navigation@4"
+        },
+        {
+          "command": "mcplab.selectProject",
+          "when": "view == mcplab.servers",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
         {
           "command": "mcplab.connect",
-          "when": "view == mcplab.servers && viewItem =~ /^server:(disconnected|error)$/",
+          "when": "view == mcplab.servers && viewItem =~ /^server:(disconnected|error)(:|$)/",
           "group": "inline@1"
         },
         {
           "command": "mcplab.disconnect",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "inline@1"
         },
         {
@@ -306,17 +350,17 @@
         },
         {
           "command": "mcplab.showCapabilities",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "1_run@2"
         },
         {
           "command": "mcplab.setAuthToken",
-          "when": "view == mcplab.servers && viewItem =~ /^server:/",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/ && viewItem not =~ /:oauth:/",
           "group": "2_auth@1"
         },
         {
           "command": "mcplab.clearAuthToken",
-          "when": "view == mcplab.servers && viewItem =~ /^server:/",
+          "when": "view == mcplab.servers && viewItem =~ /^server:/ && viewItem not =~ /:oauth:/",
           "group": "2_auth@2"
         },
         {
@@ -331,12 +375,12 @@
         },
         {
           "command": "mcplab.diagnose",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "1_run@3"
         },
         {
           "command": "mcplab.lint",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "1_run@4"
         },
         {
@@ -346,20 +390,46 @@
         },
         {
           "command": "mcplab.securityScan",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "1_run@5"
         },
         {
           "command": "mcplab.generateDocs",
-          "when": "view == mcplab.servers && viewItem == server:connected",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
           "group": "1_run@6"
+        },
+        {
+          "command": "mcplab.signIn",
+          "when": "view == mcplab.servers && viewItem =~ /^server:.*:oauth:out$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "mcplab.signIn",
+          "when": "view == mcplab.servers && viewItem =~ /^server:.*:oauth:out$/",
+          "group": "2_auth@0"
+        },
+        {
+          "command": "mcplab.signOut",
+          "when": "view == mcplab.servers && viewItem =~ /^server:.*:oauth:in$/",
+          "group": "2_auth@3"
+        },
+        {
+          "command": "mcplab.reauthenticate",
+          "when": "view == mcplab.servers && viewItem =~ /^server:.*:oauth:/",
+          "group": "2_auth@4"
+        },
+        {
+          "command": "mcplab.showAuthDiagnostics",
+          "when": "view == mcplab.servers && viewItem =~ /^server:.*:oauth:/",
+          "group": "2_auth@5"
+        },
+        {
+          "command": "mcplab.refreshTools",
+          "when": "view == mcplab.servers && viewItem =~ /^server:connected(:|$)/",
+          "group": "1_run@0"
         }
       ],
       "commandPalette": [
-        {
-          "command": "mcplab.copyDefinition",
-          "when": "false"
-        },
         {
           "command": "mcplab.openItem",
           "when": "false"
@@ -512,6 +582,209 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Mask credentials (bearer tokens, API keys, private keys, JWTs) in log output. Logs are frequently pasted into issues and chats, so this is on by default."
+        },
+        "mcplab.projects": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "MCP projects: an MCP endpoint and the OAuth configuration to reach it. Each project is self-contained - nothing is shared between projects. Any string may reference an environment variable as `${env:NAME}`. See the README for an example.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "mcpUrl"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+                "description": "Stable id; used to keep this project's tokens apart."
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "mcpUrl": {
+                "type": "string",
+                "description": "The MCP Streamable HTTP endpoint (not a .well-known URL)."
+              },
+              "oauth": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "description": "OAuth client id registered for this project. May be \"${env:NAME}\"."
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                    "patternErrorMessage": "Only an environment reference such as ${env:MY_CLIENT_SECRET} is accepted here. Never put a secret in settings.",
+                    "description": "Confidential clients only, and only as \"${env:NAME}\". Public clients using PKCE need no secret."
+                  },
+                  "scopes": {
+                    "type": [
+                      "array",
+                      "string"
+                    ],
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Scopes to request, e.g. [\"offline_access\", \"api://app/Mcp.Read\"]."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Protected resource identifier (RFC 8707). Defaults to mcpUrl."
+                  },
+                  "authority": {
+                    "type": "string",
+                    "description": "Expected authorization server (issuer). Pins discovery to it."
+                  },
+                  "discoveryUrl": {
+                    "type": "string",
+                    "description": "Authorization-server metadata URL; used only when discovery cannot find it."
+                  },
+                  "protectedResourceMetadataUrl": {
+                    "type": "string",
+                    "description": "Protected-resource metadata URL; used only when discovery cannot find it."
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "description": "Exact redirect URI to send, when the identity provider needs a specific one."
+                  },
+                  "audience": {
+                    "type": "string",
+                    "description": "Expected access-token audience; enforced when set."
+                  },
+                  "trustedHosts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Extra hosts discovery may lead to without asking."
+                  },
+                  "resourceParameter": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "always",
+                      "never"
+                    ],
+                    "default": "auto"
+                  },
+                  "callbackMode": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "uri",
+                      "loopback"
+                    ],
+                    "default": "auto"
+                  },
+                  "strict": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "mcplab.selectedProject": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "The project MCP commands act on when none is chosen explicitly. Set by **MCP: Select Project**."
+        },
+        "mcplab.serverUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "MCP endpoint of the default project. Overrides the `MCP_URL` environment variable."
+        },
+        "mcplab.oauth.clientId": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "OAuth client id of the default project. Overrides `MCP_OAUTH_CLIENT_ID`."
+        },
+        "mcplab.oauth.clientSecret": {
+          "type": "string",
+          "default": "",
+          "pattern": "^(\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\})?$",
+          "patternErrorMessage": "Only an environment reference such as ${env:MCP_OAUTH_CLIENT_SECRET} is accepted. Never put a secret in settings.",
+          "markdownDescription": "Confidential clients only: an **environment reference** such as `${env:MCP_OAUTH_CLIENT_SECRET}`. A secret written here is refused. Public clients using PKCE need no secret; prefer **MCP: Store OAuth Client Secret** if one is unavoidable."
+        },
+        "mcplab.oauth.scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "OAuth scopes of the default project. Overrides `MCP_OAUTH_SCOPES` (space-separated)."
+        },
+        "mcplab.oauth.resource": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Protected resource (RFC 8707) of the default project. Defaults to the MCP URL. Overrides `MCP_OAUTH_RESOURCE`."
+        },
+        "mcplab.oauth.authority": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Expected authorization server of the default project. Overrides `MCP_OAUTH_AUTHORITY`. When set, discovery may only lead there."
+        },
+        "mcplab.oauth.discoveryUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Authorization-server metadata URL, used only when discovery cannot find it. Overrides `MCP_OAUTH_DISCOVERY_URL`."
+        },
+        "mcplab.oauth.protectedResourceMetadataUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Protected-resource metadata URL, used only when discovery cannot find it. Overrides `MCP_OAUTH_PROTECTED_RESOURCE_METADATA_URL`."
+        },
+        "mcplab.oauth.redirectUri": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Exact redirect URI to send. Leave empty to use the one this editor resolves (logged in **MCP Lab: Auth**). Overrides `MCP_OAUTH_REDIRECT_URI`."
+        },
+        "mcplab.oauth.audience": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Expected access-token audience for the default project. When set it is enforced."
+        },
+        "mcplab.oauth.trustedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Hosts discovery may lead to without asking, for the default project, e.g. a separate token host."
+        },
+        "mcplab.oauth.resourceParameter": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "default": "auto",
+          "markdownDescription": "When to send the RFC 8707 `resource` parameter. `auto`: when the resource is configured or the server publishes protected-resource metadata. Use `never` for identity providers that identify the API through scopes and reject the parameter."
+        },
+        "mcplab.oauth.callbackMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "uri",
+            "loopback"
+          ],
+          "default": "auto",
+          "markdownDescription": "How the browser returns to the editor. `uri`: the editor's URI handler (works in Remote SSH, WSL, containers and Codespaces). `loopback`: a one-shot listener on 127.0.0.1 with an OS-assigned port. `auto`: the URI handler when available."
+        },
+        "mcplab.oauth.strict": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Refuse anything that cannot be verified - an identity provider that does not advertise PKCE S256, or an access token whose issuer or audience does not match - instead of warning."
+        },
+        "mcplab.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Write debug-level events to **MCP Lab: Auth**. Secrets are never logged at any level."
         }
       }
     },
@@ -545,6 +818,12 @@
           }
         ]
       }
+    ],
+    "authentication": [
+      {
+        "id": "mcplab",
+        "label": "MCP Lab"
+      }
     ]
   },
   "scripts": {
@@ -569,5 +848,11 @@
   "galleryBanner": {
     "color": "#0d1b2e",
     "theme": "dark"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "MCP Lab connects to servers, starts processes and sends credentials according to workspace settings, so it only runs in trusted workspaces."
+    }
   }
 }

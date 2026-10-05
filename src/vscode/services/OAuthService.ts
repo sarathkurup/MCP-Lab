@@ -1,329 +1,282 @@
 import * as vscode from 'vscode';
 import type { ServerConfig } from '../../core/config';
 import type { LogStore } from '../../core/logging';
+import { findOAuthError, sanitizeUrl } from '../../core/oauth';
+import { CALLBACK_PATH } from '../../core/oauthCallback';
 import {
-  buildAuthorizationUrl,
-  createPkce,
-  createState,
-  discoverAuthorizationServer,
-  discoverProtectedResource,
-  exchangeAuthorizationCode,
-  needsRefresh,
-  parseWwwAuthenticate,
-  refreshAccessToken,
-  registerClient,
-  type AuthorizationServerMetadata,
-  type ClientRegistration,
-  type TokenSet,
-} from '../../core/oauth';
+  OAuthSessionManager,
+  type AuthLogLevel,
+  type SessionChange,
+  type SessionInfo,
+} from '../../core/oauthSession';
+import { adhocProject, type ResolvedProject } from '../../core/projects';
+import type { UnauthorizedContext } from '../../core/transport/StreamableHttpTransport';
 
 /**
- * The host half of OAuth: the parts core cannot do because they need an editor -
- * opening a browser, catching the redirect, and keeping tokens somewhere they
- * survive a restart.
+ * The editor half of OAuth. Everything protocol-shaped - discovery, PKCE,
+ * state, the code exchange, refresh, isolation between projects - lives in
+ * core's OAuthSessionManager and is tested there against real HTTP servers.
+ * This class supplies only what an editor alone can:
  *
- * Everything persisted here goes to SecretStorage, which is the OS keychain.
- * That is what makes a sign-in outlive VS Code closing and the machine
- * rebooting: on the next call the access token is either still valid or is
- * refreshed silently from the stored refresh token, and the user sees nothing.
+ *   - SecretStorage (the OS keychain) for tokens, so a sign-in survives VS Code
+ *     closing and the machine rebooting
+ *   - the browser, through openExternal
+ *   - the way back, through the URI handler and asExternalUri - which is what
+ *     lets the callback reach the extension host in Remote SSH, WSL, dev
+ *     containers and Codespaces, where the browser is on another machine
+ *   - consent prompts and the "MCP Lab: Auth" output channel
  */
 
-const TOKEN_PREFIX = 'mcplab.oauth.tokens.';
-const CLIENT_PREFIX = 'mcplab.oauth.client.';
-/** A browser round trip that has not come back by now is not coming back. */
-const REDIRECT_TIMEOUT_MS = 5 * 60_000;
+const SECRET_INDEX_KEY = 'mcplab.oauth.clientSecretProjects';
 
-interface StoredSession {
-  tokens: TokenSet;
-  metadata: AuthorizationServerMetadata;
-  clientId: string;
-  clientSecret?: string;
-  resource?: string;
-}
-
-interface PendingFlow {
-  resolve: (code: string) => void;
-  reject: (err: Error) => void;
+export interface AuthTreeStatus {
+  signedIn: boolean;
+  account?: string;
+  expiresAt?: number;
+  refreshable?: boolean;
 }
 
 export class OAuthService implements vscode.Disposable {
-  private readonly pending = new Map<string, PendingFlow>();
+  readonly manager: OAuthSessionManager;
+  private readonly channel: vscode.OutputChannel;
   private readonly disposables: vscode.Disposable[] = [];
-  /** Serialises refreshes so ten parallel calls cause one token request. */
-  private readonly inFlight = new Map<string, Promise<string | undefined>>();
+
+  readonly onDidChangeSessions: (listener: (change: SessionChange) => void) => { dispose(): void };
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly logs: LogStore,
   ) {
+    this.channel = vscode.window.createOutputChannel('MCP Lab: Auth');
+    this.disposables.push(this.channel);
+
+    this.manager = new OAuthSessionManager({
+      secrets: {
+        get: async (key) => context.secrets.get(key),
+        store: async (key, value) => context.secrets.store(key, value),
+        delete: async (key) => context.secrets.delete(key),
+      },
+      state: {
+        get: <T>(key: string) => context.globalState.get<T>(key),
+        update: async (key, value) => context.globalState.update(key, value),
+      },
+      logger: { log: (level, projectId, message, detail) => this.write(level, projectId, message, detail) },
+      openBrowser: async (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
+      editorRedirectUri: () => this.editorRedirectUri(),
+      externalizeLoopback: async (url) => (await vscode.env.asExternalUri(vscode.Uri.parse(url))).toString(true),
+      unsupportedReason: (mode) => this.unsupportedReason(mode),
+      approveAuthorizationServer: (project, issuer) => this.approveIssuer(project, issuer),
+      readClientSecret: (project) => this.readClientSecret(project),
+      clientName: 'MCP Lab',
+    });
+    this.onDidChangeSessions = this.manager.onDidChangeSessions;
+
     this.disposables.push(
       vscode.window.registerUriHandler({
-        handleUri: (uri) => this.handleRedirect(uri),
+        handleUri: (uri) => {
+          this.manager.deliverCallback(uri.path, uri.query);
+        },
       }),
     );
   }
 
   dispose(): void {
+    this.manager.dispose();
     for (const item of this.disposables) item.dispose();
-    for (const flow of this.pending.values()) {
-      flow.reject(new Error('Extension shut down during sign-in'));
-    }
-    this.pending.clear();
   }
 
-  private get redirectUri(): string {
-    // VS Code routes vscode://<publisher>.<name>/... back to this extension.
-    return `${vscode.env.uriScheme}://${this.context.extension.id}/auth-callback`;
+  showLog(): void {
+    this.channel.show(true);
   }
-
-  // -------------------------------------------------------------------------
-  // Token access
-  // -------------------------------------------------------------------------
 
   /**
-   * A usable access token, refreshed if needed. Returns undefined when the user
-   * has never signed in or the refresh token is spent - the caller then decides
-   * whether to prompt, because a background reconnect should not open a browser.
+   * Writes the redirect URI this editor will use, so whoever registers the
+   * client with the identity provider can read it straight off the channel.
    */
-  async accessToken(serverId: string): Promise<string | undefined> {
-    const existing = this.inFlight.get(serverId);
-    if (existing) return existing;
-
-    const run = this.resolveToken(serverId).finally(() => this.inFlight.delete(serverId));
-    this.inFlight.set(serverId, run);
-    return run;
+  async announceRedirectUri(projectCount: number): Promise<void> {
+    if (projectCount === 0) return;
+    const uri = await this.editorRedirectUri();
+    this.write(
+      'info',
+      undefined,
+      uri
+        ? `Redirect URI for sign-in in this editor: ${sanitizeUrl(uri) || uri} (register it with the identity provider; projects using "callbackMode": "loopback" use http://127.0.0.1:<port>/auth/callback instead)`
+        : 'This editor has no URI-handler redirect; sign-in will use a loopback callback on 127.0.0.1.',
+      { projects: projectCount, ...this.environment() },
+    );
   }
 
-  private async resolveToken(serverId: string): Promise<string | undefined> {
-    const session = await this.readSession(serverId);
-    if (!session) return undefined;
+  // -------------------------------------------------------------------------
+  // Logging: one dedicated channel, mirrored into the panel's log view
+  // -------------------------------------------------------------------------
 
-    if (!needsRefresh(session.tokens)) {
-      return session.tokens.accessToken;
+  private write(level: AuthLogLevel, projectId: string | undefined, message: string, detail?: Record<string, unknown>): void {
+    if (level === 'debug' && !vscode.workspace.getConfiguration('mcplab').get<boolean>('debugLogging', false)) {
+      return;
     }
+    const time = new Date().toISOString().slice(11, 23);
+    const scope = projectId ? ` [${projectId}]` : '';
+    const extra = detail && Object.keys(detail).length ? ` ${JSON.stringify(detail)}` : '';
+    this.channel.appendLine(`${time} ${level.toUpperCase().padEnd(5)}${scope} ${message}${extra}`);
+    this.logs.log(level, `auth: ${message}`, { serverId: projectId, source: 'mcplab', detail });
+  }
 
-    if (!session.tokens.refreshToken) {
-      this.logs.log('warn', 'OAuth token expired and there is no refresh token', { serverId });
-      return undefined;
-    }
+  // -------------------------------------------------------------------------
+  // Environment
+  // -------------------------------------------------------------------------
 
+  /** vscode://<publisher>.<name>/auth/callback, made reachable from the browser. */
+  async editorRedirectUri(): Promise<string | undefined> {
+    const local = vscode.Uri.parse(`${vscode.env.uriScheme}://${this.context.extension.id}${CALLBACK_PATH}`);
     try {
-      const tokens = await refreshAccessToken({
-        metadata: session.metadata,
-        tokens: session.tokens,
-        clientId: session.clientId,
-        clientSecret: session.clientSecret,
-        resource: session.resource,
-      });
-      await this.writeSession(serverId, { ...session, tokens });
-      this.logs.log('info', 'OAuth access token refreshed', { serverId });
-      return tokens.accessToken;
-    } catch (err) {
-      // A refused refresh means the grant is gone; drop it so the next call
-      // prompts for a fresh sign-in rather than retrying forever.
-      this.logs.log('warn', 'OAuth refresh failed; sign-in required', {
-        serverId,
-        detail: errorText(err),
-      });
-      await this.context.secrets.delete(TOKEN_PREFIX + serverId);
+      return (await vscode.env.asExternalUri(local)).toString(true);
+    } catch {
       return undefined;
     }
   }
 
-  async isSignedIn(serverId: string): Promise<boolean> {
-    return (await this.readSession(serverId)) !== undefined;
-  }
-
-  async signOut(serverId: string): Promise<void> {
-    await this.context.secrets.delete(TOKEN_PREFIX + serverId);
-    this.logs.log('info', 'Signed out', { serverId });
-  }
-
-  // -------------------------------------------------------------------------
-  // Interactive sign-in
-  // -------------------------------------------------------------------------
-
-  /**
-   * The full chain: discover where to authenticate, register if this is the
-   * first time, open a browser, wait for the redirect, exchange the code.
-   *
-   * `challengeHeader` is the `WWW-Authenticate` from a 401, when one provoked
-   * this. It names the metadata document directly, which saves guessing.
-   */
-  async signIn(config: ServerConfig, challengeHeader?: string): Promise<void> {
-    if (!config.url) {
-      throw new Error('Only HTTP servers can use OAuth; this one is stdio.');
+  private unsupportedReason(mode: 'uri' | 'loopback'): string | undefined {
+    if (mode === 'loopback' && vscode.env.uiKind === vscode.UIKind.Web) {
+      return (
+        'A loopback sign-in callback cannot work in a browser-based editor, because the browser ' +
+        'cannot reach a listener on the extension host. Use "oauth.callbackMode": "uri".'
+      );
     }
+    return undefined;
+  }
 
-    const metadataUrl = challengeHeader
-      ? parseWwwAuthenticate(challengeHeader).resourceMetadata
-      : undefined;
+  environment(): Record<string, unknown> {
+    return {
+      editor: vscode.env.appName,
+      uriScheme: vscode.env.uriScheme,
+      uiKind: vscode.env.uiKind === vscode.UIKind.Web ? 'web' : 'desktop',
+      remote: vscode.env.remoteName ?? 'local',
+      extensionId: this.context.extension.id,
+      extensionHostPlatform: process.platform,
+    };
+  }
 
-    await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Signing in to ${config.name}` },
-      async (progress) => {
-        progress.report({ message: 'Discovering the authorization server' });
-        const resource = await discoverProtectedResource(config.url!, { metadataUrl });
-        const issuer = resource.authorizationServers[0];
-        const metadata = await discoverAuthorizationServer(issuer);
+  // -------------------------------------------------------------------------
+  // Consent and secrets
+  // -------------------------------------------------------------------------
 
-        progress.report({ message: 'Preparing the client' });
-        const client = await this.clientFor(metadata, resource.scopesSupported?.join(' '));
+  private async approveIssuer(project: ResolvedProject, issuer: string): Promise<boolean> {
+    const choice = await vscode.window.showWarningMessage(
+      `${project.displayName} wants you to sign in at ${sanitizeUrl(issuer)}.`,
+      {
+        modal: true,
+        detail:
+          'The MCP server named this identity provider, but your configuration does not. ' +
+          'Only continue if you recognise it. To skip this question, set oauth.authority for the project.',
+      },
+      'Trust and Sign In',
+    );
+    return choice === 'Trust and Sign In';
+  }
 
-        const pkce = createPkce();
-        const state = createState();
-        const authorizationUrl = buildAuthorizationUrl({
-          metadata,
-          clientId: client.clientId,
-          redirectUri: this.redirectUri,
-          pkce,
-          state,
-          scope: resource.scopesSupported?.join(' '),
-          resource: resource.resource ?? config.url,
-        });
+  private async readClientSecret(project: ResolvedProject): Promise<string | undefined> {
+    const source = project.oauth.clientSecretSource;
+    if (!source) return undefined;
+    if (source.kind === 'environment') return process.env[source.variable] || undefined;
+    return this.context.secrets.get(this.clientSecretKey(project.id));
+  }
 
-        progress.report({ message: 'Waiting for the browser' });
-        const waiting = this.waitForRedirect(state);
-        const opened = await vscode.env.openExternal(vscode.Uri.parse(authorizationUrl));
-        if (!opened) {
-          this.pending.delete(state);
-          throw new Error('Could not open a browser for the sign-in');
+  private clientSecretKey(projectId: string): string {
+    return `mcplab.oauth.${projectId}.clientSecret`;
+  }
+
+  /** Project ids with a client secret in secure storage. Non-secret, kept in state. */
+  secureSecretProjects(): Set<string> {
+    return new Set(this.context.globalState.get<string[]>(SECRET_INDEX_KEY, []));
+  }
+
+  async storeClientSecret(projectId: string, secret: string | undefined): Promise<void> {
+    const ids = this.secureSecretProjects();
+    if (secret) {
+      await this.context.secrets.store(this.clientSecretKey(projectId), secret);
+      ids.add(projectId);
+    } else {
+      await this.context.secrets.delete(this.clientSecretKey(projectId));
+      ids.delete(projectId);
+    }
+    await this.context.globalState.update(SECRET_INDEX_KEY, [...ids]);
+  }
+
+  // -------------------------------------------------------------------------
+  // What the rest of the extension calls
+  // -------------------------------------------------------------------------
+
+  /** The project behind a server definition; a hand-added server gets an ad-hoc one. */
+  projectFor(config: ServerConfig): ResolvedProject {
+    return config.project ?? adhocProject(config);
+  }
+
+  /** A valid token for a request to `requestUrl`, refreshed first when needed. */
+  accessToken(config: ServerConfig, requestUrl?: string): Promise<string> {
+    return this.manager.getAccessToken(this.projectFor(config), requestUrl);
+  }
+
+  /** A 401 from an OAuth server: refresh once and retry, never more. */
+  async handleUnauthorized(config: ServerConfig, context: UnauthorizedContext): Promise<boolean> {
+    if (config.auth?.kind !== 'oauth') return false;
+    return this.manager.handleUnauthorized(this.projectFor(config), context.authorization);
+  }
+
+  session(serverId: string): SessionInfo | undefined {
+    return this.manager.session(serverId);
+  }
+
+  status(serverId: string): AuthTreeStatus {
+    const session = this.manager.session(serverId);
+    return session
+      ? { signedIn: true, account: session.accountLabel, expiresAt: session.expiresAt, refreshable: session.hasRefreshToken }
+      : { signedIn: false };
+  }
+
+  /** The interactive sign-in, with a cancellable notification. */
+  async signIn(config: ServerConfig): Promise<SessionInfo> {
+    const project = this.projectFor(config);
+    return vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Signing in to ${project.displayName}`,
+        cancellable: true,
+      },
+      async (progress, token) => {
+        const controller = new AbortController();
+        const subscription = token.onCancellationRequested(() => controller.abort());
+        try {
+          return await this.manager.signIn(project, {
+            signal: controller.signal,
+            onProgress: (message) => progress.report({ message }),
+          });
+        } finally {
+          subscription.dispose();
         }
-
-        const code = await waiting;
-
-        progress.report({ message: 'Exchanging the code' });
-        const tokens = await exchangeAuthorizationCode({
-          metadata,
-          code,
-          clientId: client.clientId,
-          clientSecret: client.clientSecret,
-          redirectUri: this.redirectUri,
-          codeVerifier: pkce.verifier,
-          resource: resource.resource ?? config.url,
-        });
-
-        await this.writeSession(config.id, {
-          tokens,
-          metadata,
-          clientId: client.clientId,
-          clientSecret: client.clientSecret,
-          resource: resource.resource ?? config.url,
-        });
-        this.logs.log('info', 'Signed in', {
-          serverId: config.id,
-          detail: {
-            issuer: metadata.issuer,
-            expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt).toISOString() : 'not stated',
-            refreshable: Boolean(tokens.refreshToken),
-          },
-        });
       },
     );
   }
 
-  /**
-   * A client id for this issuer, registering one if we have none. Registrations
-   * are keyed by issuer rather than by server, because several MCP servers
-   * behind one authorization server can share it.
-   */
-  private async clientFor(
-    metadata: AuthorizationServerMetadata,
-    scope?: string,
-  ): Promise<ClientRegistration> {
-    const key = CLIENT_PREFIX + metadata.issuer;
-    const stored = await this.context.secrets.get(key);
-    if (stored) {
-      const parsed = safeParse<ClientRegistration>(stored);
-      if (parsed?.clientId) {
-        const expired =
-          parsed.clientSecretExpiresAt !== undefined && parsed.clientSecretExpiresAt <= Date.now();
-        if (!expired) return parsed;
-      }
-    }
-
-    if (!metadata.registrationEndpoint) {
-      throw new Error(
-        `${metadata.issuer} does not support dynamic client registration. Register MCP Lab ` +
-          `manually and add the client id to the server's auth settings.`,
-      );
-    }
-
-    const registration = await registerClient(metadata.registrationEndpoint, {
-      clientName: 'MCP Lab',
-      redirectUri: this.redirectUri,
-      scope,
-    });
-    await this.context.secrets.store(key, JSON.stringify(registration));
-    return registration;
+  signOut(config: ServerConfig): Promise<boolean> {
+    return this.manager.signOut(this.projectFor(config));
   }
 
-  private waitForRedirect(state: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(state);
-        reject(new Error('Timed out waiting for the browser to come back'));
-      }, REDIRECT_TIMEOUT_MS);
-
-      this.pending.set(state, {
-        resolve: (code) => {
-          clearTimeout(timer);
-          this.pending.delete(state);
-          resolve(code);
-        },
-        reject: (err) => {
-          clearTimeout(timer);
-          this.pending.delete(state);
-          reject(err);
-        },
-      });
-    });
-  }
-
-  private handleRedirect(uri: vscode.Uri): void {
-    const params = new URLSearchParams(uri.query);
-    const state = params.get('state');
-    if (!state) return;
-
-    // An unknown state is either a stale redirect or a forged one. Either way
-    // there is no flow to complete, so it is dropped rather than guessed at.
-    const flow = this.pending.get(state);
-    if (!flow) return;
-
-    const error = params.get('error');
-    if (error) {
-      flow.reject(new Error(params.get('error_description') ?? error));
-      return;
-    }
-
-    const code = params.get('code');
-    if (!code) {
-      flow.reject(new Error('The redirect carried no authorization code'));
-      return;
-    }
-    flow.resolve(code);
-  }
-
-  // -------------------------------------------------------------------------
-
-  private async readSession(serverId: string): Promise<StoredSession | undefined> {
-    const raw = await this.context.secrets.get(TOKEN_PREFIX + serverId);
-    return raw ? safeParse<StoredSession>(raw) : undefined;
-  }
-
-  private async writeSession(serverId: string, session: StoredSession): Promise<void> {
-    await this.context.secrets.store(TOKEN_PREFIX + serverId, JSON.stringify(session));
+  async diagnostics(config: ServerConfig): Promise<Record<string, unknown>> {
+    const project = this.projectFor(config);
+    return {
+      ...(await this.manager.diagnostics(project)),
+      environment: this.environment(),
+    };
   }
 }
 
-function safeParse<T>(raw: string): T | undefined {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return undefined;
-  }
-}
-
-function errorText(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+/**
+ * A message for a person: the error, then what to do about it. Looks through
+ * the cause chain, because an auth failure usually arrives wrapped in the MCP
+ * client's own error.
+ */
+export function explainAuthError(err: unknown): string {
+  const error = findOAuthError(err);
+  const message = error?.message ?? (err instanceof Error ? err.message : String(err));
+  return error?.hint ? `${message.replace(/\.$/, '')}. ${error.hint}` : message;
 }

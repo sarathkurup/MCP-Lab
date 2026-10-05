@@ -12,7 +12,8 @@ export interface ConnectionManagerDeps {
   logs: LogStore;
   trace: TraceStore;
   requestTimeoutMs: () => number;
-  authProvider?: (config: ServerConfig) => Promise<Record<string, string>>;
+  authProvider?: McpConnectionDeps['authProvider'];
+  onUnauthorized?: McpConnectionDeps['onUnauthorized'];
   maxReconnectAttempts?: () => number;
 }
 
@@ -38,6 +39,7 @@ export class ConnectionManager {
       trace: this.deps.trace,
       requestTimeoutMs: this.deps.requestTimeoutMs,
       authProvider: this.deps.authProvider,
+      onUnauthorized: this.deps.onUnauthorized,
       maxReconnectAttempts: this.deps.maxReconnectAttempts,
     };
   }
@@ -56,7 +58,9 @@ export class ConnectionManager {
   upsert(config: ServerConfig): McpConnection {
     const existing = this.connections.get(config.id);
     if (existing) {
-      existing.config = config;
+      // Not a plain assignment: a live transport must not keep running on
+      // credentials or an endpoint the configuration no longer names.
+      existing.updateConfig(config);
       this.membershipChanged.fire();
       return existing;
     }

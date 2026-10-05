@@ -87,13 +87,20 @@ describe('identity', () => {
     // into nonsense: their patterns had been edited to match the *current*
     // name, so they passed while testing nothing.
     const FORMER = /workbench|mcpilot/i;
+    // VS Code's own command ids live under `workbench.action.*` and
+    // `workbench.view.*`; calling one is not a mention of a former name, so
+    // exactly that namespace - and nothing broader - is set aside.
+    const withoutEditorCommands = (text: string) =>
+      text.replace(/['"`]workbench\.(action|view)\.[\w.]+['"`]/g, "'vscode-command'");
 
-    const stale = SOURCES.filter((entry) => FORMER.test(entry.text)).map((entry) => entry.file);
+    const stale = SOURCES.filter((entry) => FORMER.test(withoutEditorCommands(entry.text))).map(
+      (entry) => entry.file,
+    );
     assert.deepEqual(stale, [], 'sources still mention a former name');
 
     for (const file of ['package.json', 'README.md', 'LICENSE', '.vscodeignore', 'install.cmd']) {
       assert.doesNotMatch(
-        readFileSync(path.join(ROOT, file), 'utf8'),
+        withoutEditorCommands(readFileSync(path.join(ROOT, file), 'utf8')),
         FORMER,
         `${file} still mentions a former name`,
       );

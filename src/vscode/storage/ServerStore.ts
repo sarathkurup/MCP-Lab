@@ -1,37 +1,136 @@
 import * as vscode from 'vscode';
 import { AuthProvider, type AuthConfig } from '../../core/auth';
 import { deriveServerId, validateServerConfig, type ServerConfig } from '../../core/config';
+import { sanitizeUrl } from '../../core/oauth';
+import {
+  SENSITIVE_SETTING_KEYS,
+  findWorkspaceOverrides,
+  projectToServerConfig,
+  resolveProjects,
+  type OAuthInput,
+  type ProjectResolution,
+} from '../../core/projects';
 
 const STATE_KEY = 'mcplab.servers.v1';
 const SECRET_PREFIX = 'mcplab.auth.';
+const APPROVALS_KEY = 'mcplab.workspaceApprovals';
+
+const OAUTH_SETTING_KEYS = [
+  'clientId',
+  'clientSecret',
+  'scopes',
+  'resource',
+  'authority',
+  'discoveryUrl',
+  'protectedResourceMetadataUrl',
+  'redirectUri',
+  'audience',
+  'trustedHosts',
+  'resourceParameter',
+  'callbackMode',
+  'strict',
+] as const;
+
+/** What the OAuth service provides to the store. Injected: it owns a URI handler. */
+export interface StoreOAuth {
+  accessToken(config: ServerConfig, requestUrl?: string): Promise<string>;
+  secureSecretProjects(): Set<string>;
+}
+
+export interface WorkspaceOverrideReport {
+  keys: string[];
+  fingerprint?: string;
+  approved: boolean;
+  /** Each overridden key with a display-safe rendering of its workspace value. */
+  values: Array<{ key: string; value: string }>;
+}
 
 /**
- * Persistence for server definitions. Two sources are merged: servers the user
- * added through the UI (global state) and servers declared in workspace
- * settings. Credentials live in SecretStorage and never touch either.
+ * Persistence for server definitions. Three sources are merged: MCP projects
+ * (`mcplab.projects`, plus the default project from `mcplab.serverUrl` /
+ * `mcplab.oauth.*` or the MCP_* environment variables), servers the user added
+ * through the UI (global state), and servers declared in `mcplab.servers`.
+ * Credentials live in SecretStorage and never touch any of them.
  */
 export class ServerStore {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChange = this.changed.event;
   private readonly authProviders = new Map<string, AuthProvider>();
-  /**
-   * Set once the extension has an OAuth service. It is injected rather than
-   * constructed here because it owns a URI handler, which belongs to activation.
-   */
-  private oauth?: { accessToken(serverId: string): Promise<string | undefined> };
+  private oauth?: StoreOAuth;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
-  useOAuth(service: { accessToken(serverId: string): Promise<string | undefined> }): void {
+  useOAuth(service: StoreOAuth): void {
     this.oauth = service;
   }
 
-  /** UI-added servers plus settings-declared ones, settings losing on id clash. */
+  /** Projects first, then UI-added servers, then settings-declared ones; first id wins. */
   list(): ServerConfig[] {
-    const user = this.listUserServers();
-    const ids = new Set(user.map((s) => s.id));
+    const projects = this.projectResolution().projects.map(projectToServerConfig);
+    const ids = new Set(projects.map((s) => s.id));
+    const user = this.listUserServers().filter((s) => !ids.has(s.id));
+    user.forEach((s) => ids.add(s.id));
     const fromSettings = this.listSettingsServers().filter((s) => !ids.has(s.id));
-    return [...user, ...fromSettings].sort((a, b) => a.name.localeCompare(b.name));
+    return [...projects, ...user, ...fromSettings].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // -------------------------------------------------------------------------
+  // Projects
+  // -------------------------------------------------------------------------
+
+  /** Every configured project, resolved, with the issues that block each one. */
+  projectResolution(): ProjectResolution {
+    const settings = vscode.workspace.getConfiguration('mcplab');
+    const oauth: OAuthInput = {};
+    for (const key of OAUTH_SETTING_KEYS) {
+      oauth[key] = settings.get<unknown>(`oauth.${key}`);
+    }
+    const overrides = this.workspaceOverrides();
+    return resolveProjects({
+      projects: settings.get<unknown>('projects'),
+      settings: { serverUrl: settings.get<unknown>('serverUrl'), oauth },
+      env: process.env,
+      secureClientSecrets: this.oauth?.secureSecretProjects(),
+      workspaceOverrides: { keys: overrides.keys, approved: overrides.approved },
+    });
+  }
+
+  /**
+   * Security-sensitive settings the workspace overrides. A workspace may define
+   * where credentials go - teams share project definitions - but only after the
+   * user has seen what it sets and agreed. Approval is pinned to the values:
+   * change them and it is asked again.
+   */
+  workspaceOverrides(): WorkspaceOverrideReport {
+    const settings = vscode.workspace.getConfiguration('mcplab');
+    const inspections = SENSITIVE_SETTING_KEYS.map((key) => {
+      const inspected = settings.inspect<unknown>(key);
+      return {
+        key,
+        workspaceValue: inspected?.workspaceValue,
+        workspaceFolderValue: inspected?.workspaceFolderValue,
+      };
+    });
+    const found = findWorkspaceOverrides(inspections);
+    const approvals = this.context.globalState.get<string[]>(APPROVALS_KEY, []);
+    return {
+      keys: found.keys,
+      fingerprint: found.fingerprint,
+      approved: !!found.fingerprint && approvals.includes(found.fingerprint),
+      values: inspections
+        .filter((inspection) => found.keys.includes(inspection.key))
+        .map((inspection) => ({
+          key: `mcplab.${inspection.key}`,
+          value: describeOverride(inspection.workspaceFolderValue ?? inspection.workspaceValue),
+        })),
+    };
+  }
+
+  async approveWorkspaceOverrides(fingerprint: string): Promise<void> {
+    const approvals = new Set(this.context.globalState.get<string[]>(APPROVALS_KEY, []));
+    approvals.add(fingerprint);
+    await this.context.globalState.update(APPROVALS_KEY, [...approvals]);
+    this.changed.fire();
   }
 
   get(serverId: string): ServerConfig | undefined {
@@ -79,7 +178,11 @@ export class ServerStore {
     const user = this.listUserServers();
     const index = user.findIndex((s) => s.id === config.id);
     if (index === -1) {
-      throw new Error('Only servers added in MCP Lab can be edited here.');
+      throw new Error(
+        config.source === 'project'
+          ? 'MCP projects are edited in settings ("mcplab.projects") or through MCP_* environment variables.'
+          : 'Only servers added in MCP Lab can be edited here.',
+      );
     }
     user[index] = config;
     await this.context.globalState.update(STATE_KEY, user.map(stripSource));
@@ -118,22 +221,30 @@ export class ServerStore {
   }
 
   /**
-   * Headers for one request. Providers are cached per server so an OAuth token
-   * is minted once and reused until it is close to expiring.
+   * Headers for one request to `requestUrl`. Providers are cached per server so
+   * a client-credentials token is minted once and reused until close to expiry.
    */
-  async authHeaders(config: ServerConfig): Promise<Record<string, string>> {
+  async authHeaders(config: ServerConfig, requestUrl?: string): Promise<Record<string, string>> {
     const auth: AuthConfig = config.auth ?? { kind: 'bearer' };
+
+    // An interactive grant goes through the OAuth service, which refreshes it,
+    // pins it to its project's origin, and raises a typed sign-in requirement
+    // that the Connect command turns into a browser sign-in. Its errors pass
+    // through unwrapped so that type survives.
+    if (auth.kind === 'oauth') {
+      if (!this.oauth) {
+        throw new Error('OAuth is not available yet; try again once MCP Lab has finished activating.');
+      }
+      const token = await this.oauth.accessToken(config, requestUrl);
+      return { ...(auth.headers ?? {}), authorization: `Bearer ${token}` };
+    }
+
     const cacheKey = `${config.id}:${JSON.stringify(auth)}`;
 
     let provider = this.authProviders.get(cacheKey);
     if (!provider) {
       provider = new AuthProvider(auth, {
-        // An interactive grant resolves through the OAuth service, which knows
-        // how to refresh it; every other kind is a secret the user pasted.
-        resolveSecret: () =>
-          auth.kind === 'oauth' && this.oauth
-            ? this.oauth.accessToken(config.id)
-            : this.getAuthToken(config.id),
+        resolveSecret: () => this.getAuthToken(config.id),
       });
       // Only one provider per server: a changed auth shape replaces the old one.
       for (const key of [...this.authProviders.keys()]) {
@@ -174,4 +285,25 @@ export class ServerStore {
 function stripSource(config: ServerConfig): ServerConfig {
   const { source: _source, ...rest } = config;
   return rest as ServerConfig;
+}
+
+/** A workspace value as it is safe to show in an approval prompt. */
+function describeOverride(value: unknown): string {
+  if (typeof value === 'string') {
+    return /^https?:\/\//i.test(value) ? sanitizeUrl(value) : value;
+  }
+  if (Array.isArray(value)) {
+    if (value.every((entry) => entry && typeof entry === 'object')) {
+      return value
+        .map((entry) => {
+          const project = entry as { id?: unknown; mcpUrl?: unknown; oauth?: { authority?: unknown } };
+          const url = typeof project.mcpUrl === 'string' && /^https?:/i.test(project.mcpUrl) ? sanitizeUrl(project.mcpUrl) : String(project.mcpUrl ?? '?');
+          const authority = typeof project.oauth?.authority === 'string' ? ` via ${sanitizeUrl(project.oauth.authority)}` : '';
+          return `${String(project.id ?? '?')} → ${url}${authority}`;
+        })
+        .join('; ');
+    }
+    return value.map(String).join(', ');
+  }
+  return JSON.stringify(value);
 }

@@ -109,13 +109,11 @@ you configure, and a server to the AI clients you connect.
   destructive calls. Workflows, tests and AI clients all pass through it.
 - **Auth** — bearer, custom header, basic, OAuth client-credentials, and
   **interactive OAuth 2.1** (authorization code + PKCE) for the servers an
-  organisation actually runs. A 401 names its protected-resource metadata
-  (RFC 9728), that names an authorization server, its metadata (RFC 8414) names
-  the endpoints, and MCP Lab registers itself on the spot (RFC 7591) if it has
-  no client id yet. Only the credential *shape* lives in config; tokens live in
-  `SecretStorage`, which is the OS keychain — so a sign-in survives closing
-  VS Code and rebooting, and the access token is refreshed silently from the
-  stored refresh token without asking again.
+  organisation actually runs — see [MCP projects with OAuth](#mcp-projects-with-oauth).
+  Only the credential *shape* lives in config; tokens live in `SecretStorage`,
+  which is the OS keychain — so a sign-in survives closing VS Code and
+  rebooting, and the access token is refreshed silently from the stored
+  refresh token without asking again.
 - **Catalog & search** — every server with owner, version and health derived
   from real usage, plus ranked search across all of them.
 - **Analytics** — call counts, failure rates, p50/p95, by target.
@@ -126,6 +124,131 @@ you configure, and a server to the AI clients you connect.
   `mcp.config.json` so the CLI can reach it immediately.
 - **REST → MCP**: convert an OpenAPI document into tool definitions plus
   TypeScript handlers. It warns rather than guesses.
+
+---
+
+## MCP projects with OAuth
+
+An *MCP project* is an MCP endpoint plus the OAuth configuration needed to
+reach it. Select one and **MCP: Connect** does the rest: discovers the
+authorization server, opens your browser, receives the callback, exchanges
+the code with PKCE, stores the tokens in the OS keychain, connects, and lists
+every tool with its parameters. Nothing is pasted by hand.
+
+### Configure
+
+One project, from environment variables (read from the extension host's
+environment — the remote machine, in Remote SSH / WSL / containers):
+
+```bash
+MCP_URL=https://<mcp-host>/<project-path>/mcp
+MCP_OAUTH_CLIENT_ID=<oauth-client-id>
+MCP_OAUTH_SCOPES="offline_access <api-scope>"
+MCP_OAUTH_AUTHORITY=https://<identity-provider-host>/<tenant>/v2.0
+# optional
+MCP_OAUTH_RESOURCE=https://<mcp-host>/<project-path>/mcp        # defaults to MCP_URL
+MCP_OAUTH_DISCOVERY_URL=https://<identity-provider-host>/.well-known/openid-configuration
+MCP_OAUTH_PROTECTED_RESOURCE_METADATA_URL=https://<mcp-host>/.well-known/oauth-protected-resource
+MCP_OAUTH_REDIRECT_URI=                                          # leave empty; see below
+MCP_OAUTH_CLIENT_SECRET=                                         # confidential clients only
+```
+
+The same values work as settings — `mcplab.serverUrl`, `mcplab.oauth.clientId`,
+`mcplab.oauth.scopes` and so on — and a setting overrides its environment
+variable. Several projects, each fully self-contained, go in `mcplab.projects`:
+
+```jsonc
+"mcplab.projects": [
+  {
+    "id": "project-a",
+    "displayName": "Project A",
+    "mcpUrl": "${env:MCP_PROJECT_A_URL}",
+    "oauth": {
+      "clientId": "${env:MCP_PROJECT_A_OAUTH_CLIENT_ID}",
+      "scopes": ["offline_access", "<project-api-scope>"],
+      "authority": "${env:MCP_PROJECT_A_OAUTH_AUTHORITY}"
+    }
+  }
+]
+```
+
+Values resolve in this order: the project's own configuration, then
+extension settings and secure storage, then environment variables, then
+discovery, then safe defaults. Projects never inherit from each other — two
+projects may use different identity providers, clients, scopes and
+resources. **MCP: Show Authentication Diagnostics** shows where every value
+came from, and names exactly which variable or setting is missing.
+
+### Register the redirect URI
+
+Register this redirect URI with the identity provider (as a *mobile and
+desktop* / *native* platform redirect):
+
+```
+vscode://sarathkumar.mcplab/auth/callback
+```
+
+The scheme follows the editor: `vscode-insiders://` for Insiders, and the
+fork's own scheme in VSCodium, Cursor and the like. The exact value for your
+editor is written to the **MCP Lab: Auth** output channel at startup, after
+it has passed through `asExternalUri` — which is also what makes the callback
+reach the extension host in Remote SSH, WSL, dev containers and Codespaces.
+
+If your identity provider insists on a loopback redirect, set
+`"oauth.callbackMode": "loopback"` and register `http://127.0.0.1/auth/callback`.
+MCP Lab then listens on 127.0.0.1 only, on a port the OS chooses (RFC 8252
+requires providers to accept any port for loopback), for one callback.
+
+### What the identity provider must allow
+
+- Authorization code flow with **PKCE (S256)**, as a **public client** — no
+  client secret. A desktop extension cannot keep one, and PKCE is what
+  protects the exchange.
+- **Refresh tokens**, usually by requesting `offline_access`; without them
+  you sign in again whenever the access token expires.
+- The API scopes the MCP server checks, consented for your users.
+- If it rejects the RFC 8707 `resource` parameter (some providers identify
+  the API through scopes instead), set `"oauth.resourceParameter": "never"`.
+
+### What is checked, and refused
+
+- **Discovery is validated hop by hop**: the 401's `WWW-Authenticate`
+  challenge, protected-resource metadata that must describe *this* resource,
+  an authorization server that must be the configured `authority` (or one you
+  approve when asked), metadata whose `issuer` must match, endpoints that must
+  be HTTPS on the issuer's host. A `.well-known` URL is never used as the MCP
+  endpoint.
+- **Every sign-in** uses fresh `state`, PKCE verifier and nonce. State is
+  compared in constant time and consumed once; a forged, replayed or late
+  callback is rejected before any code is exchanged. The `iss` response
+  parameter (RFC 9207) is checked when the server sends it.
+- **Tokens stay with their project.** They are stored per project and
+  account, bound to the endpoint, resource and client they were issued for,
+  and only ever attached to requests for their own project's origin. An
+  authenticated request never follows a redirect.
+- **A 401 triggers one refresh and one retry**, never a loop. Concurrent
+  requests share a single refresh. A refused refresh clears the session and
+  asks you to sign in again.
+- **Workspace settings cannot silently redirect credentials.** If a
+  workspace sets a project's endpoint, client, authority or redirect, you are
+  shown the values and asked before anything is sent — and asked again if
+  they change. The extension does not run in untrusted workspaces at all.
+- **Nothing secret is logged**: no tokens, codes, verifiers, state values,
+  nonces, client secrets or full authorization URLs, at any log level.
+
+### Commands
+
+| Command | |
+| --- | --- |
+| MCP: Select Project | Choose the project other commands act on; disconnects the previous one |
+| MCP: Connect | Signs in if needed, connects, lists the tools |
+| MCP: Refresh Tools | Re-runs `tools/list` (following every page) |
+| MCP: Reauthenticate | Signs out and back in, e.g. to switch account |
+| MCP: Sign Out | Disconnects and deletes the project's tokens |
+| MCP: Copy Tool Definition | Copies a tool's full definition as JSON |
+| MCP: Show Authentication Diagnostics | Configuration sources, discovery steps, redirect URI, session — no secrets |
+
+Signed-in projects also appear in VS Code's **Accounts** menu.
 
 ---
 
@@ -203,7 +326,11 @@ behind. Last verified 2026-09-20; these are other people's servers and may move.
 | `src/core/workflows.ts` · `recording.ts` | Composition |
 | `src/core/compare.ts` · `catalog.ts` · `docs.ts` | Contract diff, catalog, docs |
 | `src/core/scaffold.ts` · `openapi.ts` | Project templates, REST → MCP |
-| `src/vscode/` | Extension host: tree, panel, commands, secrets, bridge |
+| `src/core/oauth.ts` | OAuth protocol: PKCE, discovery and its validation, exchange, refresh, token checks |
+| `src/core/oauthSession.ts` | OAuth orchestration: sign-in, storage isolation, refresh, 401 handling |
+| `src/core/oauthCallback.ts` | Pending sign-ins, state validation, the loopback listener |
+| `src/core/projects.ts` | MCP project configuration: env/settings resolution, validation, overrides |
+| `src/vscode/` | Extension host: tree, panel, commands, secrets, bridge, auth provider |
 | `src/webview/` | The panel UI — no framework, VS Code theme variables |
 | `src/cli/` | The CI runner |
 | `demo/` | A fake enterprise with planted problems |
@@ -249,15 +376,32 @@ Worth recording, because they are the kind of bug that survives a read-through:
 
 ---
 
+## Disclaimer
+
+MCP Lab is provided as-is, without warranty. The author is not responsible for
+any data loss, system crash or other issue caused by using it; it can invoke
+tools that change or delete data on the servers you connect to. **Use it at your
+own risk.** See [LICENSE](LICENSE) for the full terms.
+
+---
+
 ## Status
 
-Phases 0–32 of the project plan are implemented, with two documented limits:
+Phases 0–32 of the project plan are implemented, with these documented limits:
 
-- **Interactive OAuth is implemented but not verified against a live
-  provider.** The protocol half — PKCE, discovery, registration, exchange and
-  refresh — is covered by 23 tests against a stub. The browser round trip
-  itself has only been exercised by hand, because it needs a real
-  authorization server and a real consent screen.
+- **OAuth has not been verified against a production identity provider.**
+  The whole flow runs under test against real HTTP servers — a mock
+  authorization server that verifies PKCE and rotates refresh tokens, and an
+  OAuth-protected MCP server that enforces audiences — including discovery,
+  both callback modes, refresh, 401 retry and project isolation. What has not
+  been exercised is a real provider's consent screen and its quirks.
+- **ID tokens are validated by claims, not signature.** OIDC allows this for
+  a token received directly from the token endpoint over TLS. Access tokens
+  are the resource server's to verify; MCP Lab checks their lifetime, and
+  their audience and issuer when the project pins them.
+- **VS Code for the Web is not supported.** The extension needs a Node
+  extension host (it spawns stdio servers). Codespaces works, because its
+  extension host is a full Node environment.
 - **The VS Code UI layer is not covered by automated tests.** The core is, and
   the CLI is tested end to end as a real process. Testing the extension host
   itself needs `@vscode/test-electron`, which downloads a VS Code build.

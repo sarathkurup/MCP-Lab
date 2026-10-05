@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../core/ConnectionManager';
-import { describeTarget } from '../core/config';
+import { describeTarget, type ServerConfig } from '../core/config';
+import { sanitizeUrl } from '../core/oauth';
 import { buildCatalogEntry, searchCatalog, type CatalogEntry, type SearchHit } from '../core/catalog';
 import { compareServers, type CompareResult } from '../core/compare';
 import { resolveForEnvironment, type Environment } from '../core/environments';
@@ -73,7 +74,10 @@ export class McpLab implements vscode.Disposable {
       logs: this.logs,
       trace: this.trace,
       requestTimeoutMs: () => config().requestTimeoutMs,
-      authProvider: (server) => this.store.authHeaders(server),
+      // The request URL travels with the credential lookup, so a token is only
+      // ever produced for its own project's origin.
+      authProvider: (server, requestUrl) => this.store.authHeaders(server, requestUrl),
+      onUnauthorized: (server, context) => this.oauth.handleUnauthorized(server, context),
       maxReconnectAttempts: () => config().maxReconnectAttempts,
     });
 
@@ -81,7 +85,10 @@ export class McpLab implements vscode.Disposable {
     this.recorder = new Recorder(this.execution);
     this.bridge = new BridgeServer(this);
     this.channels = new OutputChannels(this.logs, this.trace);
-    this.tree = new ServersTreeProvider(this.manager);
+    this.tree = new ServersTreeProvider(this.manager, {
+      authStatus: (serverId) => this.authStatus(serverId),
+      selectedProject: () => this.selectedProjectId(),
+    });
     this.panel = McpLabPanel.register(context);
 
     this.wireEvents();
@@ -104,12 +111,24 @@ export class McpLab implements vscode.Disposable {
       asDisposable(
         this.recorder.onDidChange((entries) => this.panel.emit('recording-changed', entries)),
       ),
+      asDisposable(
+        this.oauth.onDidChangeSessions(() => {
+          this.tree.refresh();
+          push();
+        }),
+      ),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (
           event.affectsConfiguration('mcplab.servers') ||
-          event.affectsConfiguration('mcplab.environments')
+          event.affectsConfiguration('mcplab.environments') ||
+          event.affectsConfiguration('mcplab.projects') ||
+          event.affectsConfiguration('mcplab.serverUrl') ||
+          event.affectsConfiguration('mcplab.oauth')
         ) {
           void this.reloadServers();
+        }
+        if (event.affectsConfiguration('mcplab.selectedProject')) {
+          this.tree.refresh();
         }
         if (event.affectsConfiguration('mcplab.trace.maxEntries')) {
           this.trace.setCapacity(config().traceMaxEntries);
@@ -144,6 +163,95 @@ export class McpLab implements vscode.Disposable {
 
   get activeEnvironment(): Environment | undefined {
     return this.environments.active;
+  }
+
+  // -------------------------------------------------------------------------
+  // MCP projects
+  // -------------------------------------------------------------------------
+
+  /** Sign-in state for the tree; undefined for servers that do not use OAuth. */
+  authStatus(serverId: string) {
+    const connection = this.manager.get(serverId);
+    if (connection?.config.auth?.kind !== 'oauth') return undefined;
+    return this.oauth.status(serverId);
+  }
+
+  /** The configured selected project, if it still exists. */
+  selectedProjectId(): string | undefined {
+    const id = vscode.workspace.getConfiguration('mcplab').get<string>('selectedProject', '');
+    return id && this.manager.get(id) ? id : undefined;
+  }
+
+  /** Records the selection where the setting already lives, or in user settings. */
+  async setSelectedProject(id: string): Promise<void> {
+    const settings = vscode.workspace.getConfiguration('mcplab');
+    const inspected = settings.inspect<string>('selectedProject');
+    const target =
+      inspected?.workspaceValue !== undefined
+        ? vscode.ConfigurationTarget.Workspace
+        : vscode.ConfigurationTarget.Global;
+    await settings.update('selectedProject', id, target);
+    this.tree.refresh();
+  }
+
+  /** Servers that came from MCP project configuration. */
+  projectConnections() {
+    return this.manager.list().filter((connection) => connection.config.source === 'project');
+  }
+
+  /** The selected project when there is one, otherwise a quick pick of projects. */
+  async pickProject(placeHolder: string): Promise<string | undefined> {
+    const projects = this.projectConnections();
+    if (projects.length === 0) {
+      const choice = await vscode.window.showInformationMessage(
+        'No MCP projects are configured. Set MCP_URL and the MCP_OAUTH_* variables, or add projects to "mcplab.projects".',
+        'Open Settings',
+      );
+      if (choice === 'Open Settings') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'mcplab.projects');
+      }
+      return undefined;
+    }
+    if (projects.length === 1) return projects[0].id;
+    const selected = this.selectedProjectId();
+    const picked = await vscode.window.showQuickPick(
+      projects.map((connection) => {
+        const status = this.oauth.status(connection.id);
+        return {
+          label: `${connection.id === selected ? '$(star-full) ' : ''}${connection.config.name}`,
+          description: status.signedIn ? `signed in as ${status.account}` : 'not signed in',
+          detail: sanitizeUrl(connection.config.url),
+          value: connection.id,
+        };
+      }),
+      { placeHolder },
+    );
+    return picked?.value;
+  }
+
+  /**
+   * A workspace that sets where credentials go must be approved before anything
+   * is sent there. Returns false if the user declined.
+   */
+  async ensureApproved(server: ServerConfig): Promise<boolean> {
+    if (!server.project?.pendingApproval?.length) return true;
+    const report = this.store.workspaceOverrides();
+    if (report.approved || !report.fingerprint) return true;
+
+    const choice = await vscode.window.showWarningMessage(
+      'This workspace changes where MCP Lab sends your sign-in.',
+      {
+        modal: true,
+        detail:
+          `${report.values.map((entry) => `${entry.key} = ${entry.value}`).join('\n')}\n\n` +
+          'Only allow this if you trust this workspace. You will be asked again if these values change.',
+      },
+      'Allow for This Workspace',
+    );
+    if (choice !== 'Allow for This Workspace') return false;
+    await this.store.approveWorkspaceOverrides(report.fingerprint);
+    await this.reloadServers();
+    return true;
   }
 
   snapshot(): McpLabSnapshot {
@@ -296,6 +404,7 @@ export class McpLab implements vscode.Disposable {
       environmentId: connection.config.environmentId,
       capabilities: connection.capabilities,
       instructions: connection.instructions,
+      catalogErrors: catalog.errors,
       counts: {
         tools: catalog.tools.length,
         resources: catalog.resources.length,

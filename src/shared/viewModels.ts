@@ -12,7 +12,9 @@ export interface ServerSummary {
   target: string;
   status: ConnectionStatus;
   error?: string;
-  source?: 'user' | 'settings';
+  source?: 'user' | 'settings' | 'project';
+  /** Catalog lists that failed, by part - distinct from lists that are empty. */
+  catalogErrors?: Partial<Record<'tools' | 'resources' | 'resourceTemplates' | 'prompts', string>>;
   environmentId?: string;
   serverInfo?: { name: string; version: string; title?: string };
   protocolVersion?: string;

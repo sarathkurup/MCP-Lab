@@ -19,3 +19,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---------------------------------------------------------------------------
+
+ADDITIONAL DISCLAIMER
+
+MCP Lab is provided "AS IS", without warranty of any kind. The author is not
+responsible for any data loss, system crash, service outage, security
+incident, unintended change made through an MCP server, or any other damage or
+issue arising from installing or using this software. MCP Lab can invoke tools
+on the servers you connect to, including tools that modify or delete data;
+you are solely responsible for what you run and against which environment.
+
+USE IT AT YOUR OWN RISK. By installing or using MCP Lab you accept these terms.
+This disclaimer supplements, and does not limit, the warranty disclaimer and
+limitation of liability in the MIT License above.

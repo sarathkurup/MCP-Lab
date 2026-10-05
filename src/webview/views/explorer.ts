@@ -113,7 +113,7 @@ function renderCatalog(ctx: AppContext, store: ExplorerScratch): HTMLElement {
         // second, weaker reading of the annotations.
         classifyTool(tool),
       ),
-    )),
+    ), detail.catalogErrors?.tools),
   );
 
   panel.appendChild(
@@ -129,13 +129,14 @@ function renderCatalog(ctx: AppContext, store: ExplorerScratch): HTMLElement {
           resource.name,
         ),
       ),
+      detail.catalogErrors?.resources ?? detail.catalogErrors?.resourceTemplates,
     ),
   );
 
   panel.appendChild(
     section('Prompts', prompts.length, detail.prompts.length, prompts.map((prompt) =>
       catalogRow(ctx, store, 'prompt', prompt.name, prompt.description),
-    )),
+    ), detail.catalogErrors?.prompts),
   );
 
   return panel;
@@ -146,6 +147,8 @@ function section(
   shown: number,
   total: number,
   rows: HTMLElement[],
+  /** Set when the list request failed, so a failure never reads as "None". */
+  failure?: string,
 ): HTMLElement {
   return h(
     'div',
@@ -154,11 +157,14 @@ function section(
       'h3',
       null,
       title,
-      h('span', { class: 'count' }, shown === total ? String(total) : `${shown}/${total}`),
+      h('span', { class: 'count' }, failure ? '!' : shown === total ? String(total) : `${shown}/${total}`),
     ),
+    failure ? h('p', { class: 'error-title small' }, failure) : null,
     rows.length
       ? h('div', { class: 'catalog-rows' }, ...rows)
-      : h('p', { class: 'muted small' }, 'None'),
+      : failure
+        ? null
+        : h('p', { class: 'muted small' }, 'None'),
   );
 }
 

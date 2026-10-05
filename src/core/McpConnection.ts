@@ -13,17 +13,24 @@ import type {
   Tool,
 } from './protocol';
 import { StdioTransport } from './transport/StdioTransport';
-import { StreamableHttpTransport } from './transport/StreamableHttpTransport';
+import { StreamableHttpTransport, type UnauthorizedContext } from './transport/StreamableHttpTransport';
 import type { Transport } from './transport/Transport';
 import { TraceStore } from './trace';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export type CatalogPart = 'tools' | 'resources' | 'resourceTemplates' | 'prompts';
 
 export interface ServerCatalog {
   tools: Tool[];
   resources: Resource[];
   resourceTemplates: ResourceTemplate[];
   prompts: Prompt[];
+  /**
+   * Lists that failed, by part. Kept separate from the lists themselves so
+   * "tools/list failed" is never shown as "this server has no tools".
+   */
+  errors?: Partial<Record<CatalogPart, string>>;
 }
 
 export interface ConnectionStatusEvent {
@@ -36,10 +43,34 @@ export interface McpConnectionDeps {
   logs: LogStore;
   trace: TraceStore;
   requestTimeoutMs: () => number;
-  /** Extra headers (e.g. Authorization) resolved per request; never stored in config. */
-  authProvider?: (config: ServerConfig) => Promise<Record<string, string>>;
+  /**
+   * Extra headers (e.g. Authorization) resolved per request; never stored in
+   * config. Receives the URL the request is going to.
+   */
+  authProvider?: (config: ServerConfig, requestUrl?: string) => Promise<Record<string, string>>;
+  /** A request was rejected with 401; resolve true to retry it once. */
+  onUnauthorized?: (config: ServerConfig, context: UnauthorizedContext) => Promise<boolean>;
   /** How many times to retry a dropped connection. 0 disables it. */
   maxReconnectAttempts?: () => number;
+}
+
+/**
+ * The parts of a config that a live transport was built from. If any of them
+ * change, that transport is pointing somewhere - or authenticating as someone -
+ * the configuration no longer describes, so it has to go.
+ */
+export function connectionFingerprint(config: ServerConfig): string {
+  return JSON.stringify([
+    config.transport,
+    config.url ?? null,
+    config.command ?? null,
+    config.args ?? null,
+    config.cwd ?? null,
+    config.env ?? null,
+    config.headers ?? null,
+    config.auth ?? null,
+    config.project ? [config.project.mcpUrl, config.project.oauth] : null,
+  ]);
 }
 
 /** A connection that lasted this long is treated as healthy, not flapping. */
@@ -82,6 +113,23 @@ export class McpConnection {
 
   get id(): string {
     return this.config.id;
+  }
+
+  /**
+   * Swaps in a new definition. When what changed is anything the live
+   * transport depends on - endpoint, credentials, project - the transport is
+   * torn down rather than left authenticating against the old configuration.
+   * Returns true when that happened.
+   */
+  updateConfig(config: ServerConfig): boolean {
+    const changed = connectionFingerprint(config) !== connectionFingerprint(this.config);
+    this.config = config;
+    if (changed && this.currentStatus !== 'disconnected') {
+      this.log('info', 'Configuration changed; disconnecting so the next connection uses it');
+      void this.disconnect();
+      return true;
+    }
+    return false;
   }
 
   get status(): ConnectionStatus {
@@ -181,11 +229,17 @@ export class McpConnection {
     if (!this.config.url) {
       throw new Error('HTTP server has no URL configured');
     }
+    // Captured now: the transport is bound to the config it was built for, and
+    // updateConfig tears it down if that config changes.
+    const config = this.config;
     return new StreamableHttpTransport({
-      url: this.config.url,
-      headers: this.config.headers,
+      url: config.url!,
+      headers: config.headers,
       authProvider: this.deps.authProvider
-        ? () => this.deps.authProvider!(this.config)
+        ? (requestUrl) => this.deps.authProvider!(config, requestUrl)
+        : undefined,
+      onUnauthorized: this.deps.onUnauthorized
+        ? (context) => this.deps.onUnauthorized!(config, context)
         : undefined,
     });
   }
@@ -267,37 +321,53 @@ export class McpConnection {
       resourceTemplates: [],
       prompts: [],
     };
+    const errors: Partial<Record<CatalogPart, string>> = {};
 
     // A failure in one primitive must not blank out the others.
     if (caps.tools) {
-      next.tools = await this.safeList('tools', () => client.listTools());
+      next.tools = await this.safeList('tools', 'tools/list', errors, () => client.listTools());
     }
     if (caps.resources) {
-      next.resources = await this.safeList('resources', () => client.listResources());
-      next.resourceTemplates = await this.safeList('resource templates', () =>
-        client.listResourceTemplates(),
+      next.resources = await this.safeList('resources', 'resources/list', errors, () =>
+        client.listResources(),
+      );
+      next.resourceTemplates = await this.safeList(
+        'resourceTemplates',
+        'resources/templates/list',
+        errors,
+        () => client.listResourceTemplates(),
       );
     }
     if (caps.prompts) {
-      next.prompts = await this.safeList('prompts', () => client.listPrompts());
+      next.prompts = await this.safeList('prompts', 'prompts/list', errors, () => client.listPrompts());
+    }
+    if (Object.keys(errors).length) {
+      next.errors = errors;
     }
 
     this.currentCatalog = next;
     this.log(
       'info',
       `Catalog: ${next.tools.length} tools, ${next.resources.length} resources, ` +
-        `${next.resourceTemplates.length} templates, ${next.prompts.length} prompts`,
+        `${next.resourceTemplates.length} templates, ${next.prompts.length} prompts` +
+        (next.errors ? ` (failed: ${Object.keys(next.errors).join(', ')})` : ''),
     );
     this.catalogChanged.fire(this.id);
     return next;
   }
 
-  private async safeList<T>(label: string, run: () => Promise<T[]>): Promise<T[]> {
+  private async safeList<T>(
+    part: CatalogPart,
+    method: string,
+    errors: Partial<Record<CatalogPart, string>>,
+    run: () => Promise<T[]>,
+  ): Promise<T[]> {
     try {
       return await run();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.log('warn', `Failed to list ${label}: ${message}`);
+      errors[part] = `${method} failed: ${message}`;
+      this.log('warn', `${method} failed: ${message}`);
       return [];
     }
   }

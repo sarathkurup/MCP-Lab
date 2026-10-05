@@ -1,11 +1,12 @@
 import type { AuthConfig } from './auth';
 import type { ServerMetadata } from './catalog';
 import type { EnvironmentOverride } from './environments';
+import type { ResolvedProject } from './projects';
 
 export type TransportKind = 'stdio' | 'http';
 
 /** Where a server definition came from, which decides whether it can be edited. */
-export type ConfigSource = 'user' | 'settings';
+export type ConfigSource = 'user' | 'settings' | 'project';
 
 export interface ServerConfig {
   id: string;
@@ -30,6 +31,12 @@ export interface ServerConfig {
 
   autoConnect?: boolean;
   source?: ConfigSource;
+
+  /**
+   * For servers defined as MCP projects: the resolved OAuth configuration.
+   * Holds no secret - a client secret is only ever named by its location.
+   */
+  project?: ResolvedProject;
 
   /** Per-environment overrides, keyed by environment id. */
   environments?: Record<string, EnvironmentOverride>;

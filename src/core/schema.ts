@@ -489,3 +489,101 @@ function structuredCloneSafe<T>(value: T): T {
     return value;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Tool input summaries
+// ---------------------------------------------------------------------------
+
+export interface ToolParameter {
+  name: string;
+  /** Short type label, e.g. `string`, `array<integer>`, `enum(a|b)`, `object?`. */
+  type: string;
+  required: boolean;
+  description?: string;
+}
+
+export interface ToolInputDescription {
+  /** Required parameters first, then optional, each in declared order. */
+  parameters: ToolParameter[];
+  /** Why the schema could not be read as declared, when it could not. */
+  problems: string[];
+}
+
+function typeLabel(spec: FieldSpec): string {
+  let label: string = spec.kind;
+  if (spec.kind === 'array') {
+    label = `array<${spec.item ? typeLabel(spec.item) : 'unknown'}>`;
+  } else if (spec.kind === 'enum') {
+    const values = (spec.enumValues ?? []).map((value) => String(value));
+    const shown = values.slice(0, 4).join('|');
+    label = `enum(${shown}${values.length > 4 ? '|…' : ''})`;
+  } else if (spec.kind === 'unknown') {
+    label = 'any';
+  }
+  return spec.nullable ? `${label}?` : label;
+}
+
+/**
+ * A tool's parameters, split into required and optional, for display.
+ *
+ * Server-provided schemas are untrusted input: a schema that is not an object,
+ * `properties` that is an array, `required` naming parameters that do not
+ * exist - all of these turn up in practice. Each is reported as a problem
+ * rather than thrown, so one bad tool never blanks out the rest of a list.
+ */
+export function describeToolInput(schema: unknown): ToolInputDescription {
+  const problems: string[] = [];
+  if (schema === undefined || schema === null) {
+    return { parameters: [], problems: ['The tool declares no inputSchema'] };
+  }
+  if (typeof schema !== 'object' || Array.isArray(schema)) {
+    return { parameters: [], problems: ['inputSchema is not a JSON object'] };
+  }
+  const root = schema as Record<string, unknown>;
+  if (root.type !== undefined && root.type !== 'object') {
+    problems.push(`inputSchema has type "${String(root.type)}"; tool arguments must be an object`);
+  }
+
+  let properties: Record<string, unknown> = {};
+  if (root.properties !== undefined) {
+    if (typeof root.properties !== 'object' || root.properties === null || Array.isArray(root.properties)) {
+      problems.push('"properties" is not an object');
+    } else {
+      properties = root.properties as Record<string, unknown>;
+    }
+  }
+
+  let required: string[] = [];
+  if (root.required !== undefined) {
+    if (!Array.isArray(root.required) || !root.required.every((name) => typeof name === 'string')) {
+      problems.push('"required" is not a list of parameter names');
+    } else {
+      required = root.required as string[];
+    }
+  }
+  for (const name of required) {
+    if (!Object.prototype.hasOwnProperty.call(properties, name)) {
+      problems.push(`"${name}" is required but has no declared schema`);
+    }
+  }
+
+  const parameters: ToolParameter[] = Object.entries(properties).map(([name, property]) => {
+    const isRequired = required.includes(name);
+    if (!property || typeof property !== 'object' || Array.isArray(property)) {
+      problems.push(`"${name}" has no schema object`);
+      return { name, type: 'any', required: isRequired };
+    }
+    const spec = normalizeSchema(property as JsonSchema, { name, required: isRequired });
+    return {
+      name,
+      type: typeLabel(spec),
+      required: isRequired,
+      description: typeof spec.description === 'string' ? spec.description : undefined,
+    };
+  });
+
+  return {
+    parameters: [...parameters.filter((p) => p.required), ...parameters.filter((p) => !p.required)],
+    problems,
+  };
+}

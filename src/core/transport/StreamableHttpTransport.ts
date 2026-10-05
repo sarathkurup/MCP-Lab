@@ -1,12 +1,30 @@
+import { describeNetworkFailure } from '../netErrors';
+import { sanitizeUrl } from '../oauth';
 import type { JsonRpcMessage } from '../protocol';
 import { TransportError, type Transport } from './Transport';
+
+export interface UnauthorizedContext {
+  error: TransportError;
+  /** The Authorization header the rejected request carried, if any. */
+  authorization?: string;
+}
 
 export interface StreamableHttpTransportOptions {
   url: string;
   /** Static headers, including any Authorization built by the caller. */
   headers?: Record<string, string>;
-  /** Resolved lazily on every request so a rotated token is picked up. */
-  authProvider?: () => Promise<Record<string, string>>;
+  /**
+   * Resolved lazily on every request so a rotated token is picked up. Told the
+   * URL the request is going to, so a credential can refuse to travel anywhere
+   * it does not belong.
+   */
+  authProvider?: (requestUrl: string) => Promise<Record<string, string>>;
+  /**
+   * Called once when a request is rejected with 401. Resolve true to retry that
+   * request a single time (after refreshing a token, say); a second 401 is
+   * final, so a server that never accepts the credential cannot cause a loop.
+   */
+  onUnauthorized?: (context: UnauthorizedContext) => Promise<boolean>;
   fetchImpl?: typeof fetch;
 }
 
@@ -60,9 +78,64 @@ export class StreamableHttpTransport implements Transport {
       headers['mcp-protocol-version'] = this.protocolVersion;
     }
     if (this.options.authProvider) {
-      Object.assign(headers, await this.options.authProvider());
+      Object.assign(headers, await this.options.authProvider(this.options.url));
     }
     return headers;
+  }
+
+  /**
+   * One HTTP exchange. A request that carries credentials does not follow
+   * redirects: following one would hand the bearer token to whatever host the
+   * Location header names. The redirect is reported instead.
+   */
+  private async request(
+    init: { method: string; body?: string },
+    headers: Record<string, string>,
+  ): Promise<Response> {
+    const credentialed = 'authorization' in headers;
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.options.url, {
+        ...init,
+        headers,
+        signal: this.abort.signal,
+        redirect: credentialed ? 'manual' : 'follow',
+      });
+    } catch (err) {
+      const failure = describeNetworkFailure(err);
+      throw new TransportError(
+        `${init.method} ${sanitizeUrl(this.options.url)} failed: ${failure.message}` +
+          (failure.hint ? `. ${failure.hint}` : ''),
+        err,
+      );
+    }
+    if (credentialed && (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400))) {
+      const location = response.headers.get('location');
+      let target = 'another location';
+      try {
+        target = location ? new URL(location, this.options.url).origin : target;
+      } catch {
+        // keep the generic wording
+      }
+      await response.body?.cancel().catch(() => undefined);
+      const error = new TransportError(
+        `The MCP endpoint redirected (HTTP ${response.status || 'redirect'}) to ${target}. ` +
+          'Credentials are never forwarded across a redirect; update the MCP URL to the final address.',
+      );
+      error.status = response.status || undefined;
+      throw error;
+    }
+    return response;
+  }
+
+  private async httpError(response: Response): Promise<TransportError> {
+    const body = await safeText(response);
+    const error = new TransportError(
+      `HTTP ${response.status} ${response.statusText}${body ? ': ' + truncate(body) : ''}`,
+    );
+    error.status = response.status;
+    error.wwwAuthenticate = response.headers.get('www-authenticate') ?? undefined;
+    return error;
   }
 
   async send(message: JsonRpcMessage): Promise<void> {
@@ -70,16 +143,21 @@ export class StreamableHttpTransport implements Transport {
       throw new TransportError('Transport is closed');
     }
 
-    let response: Response;
-    try {
-      response = await this.fetchImpl(this.options.url, {
-        method: 'POST',
-        headers: await this.buildHeaders(),
-        body: JSON.stringify(message),
-        signal: this.abort.signal,
-      });
-    } catch (err) {
-      throw new TransportError(`POST ${this.options.url} failed: ${errorText(err)}`, err);
+    const body = JSON.stringify(message);
+    let headers = await this.buildHeaders();
+    let response = await this.request({ method: 'POST', body }, headers);
+
+    // At most one retry, and only when the auth layer says it changed something.
+    if (response.status === 401 && this.options.onUnauthorized) {
+      const error = await this.httpError(response);
+      const retry = await this.options
+        .onUnauthorized({ error, authorization: headers.authorization })
+        .catch(() => false);
+      if (!retry) {
+        throw error;
+      }
+      headers = await this.buildHeaders();
+      response = await this.request({ method: 'POST', body }, headers);
     }
 
     const session = response.headers.get('mcp-session-id');
@@ -95,12 +173,12 @@ export class StreamableHttpTransport implements Transport {
     }
 
     if (!response.ok) {
-      const body = await safeText(response);
-      const error = new TransportError(
-        `HTTP ${response.status} ${response.statusText}${body ? ': ' + truncate(body) : ''}`,
-      );
-      error.status = response.status;
-      error.wwwAuthenticate = response.headers.get('www-authenticate') ?? undefined;
+      const error = await this.httpError(response);
+      if (response.status === 401) {
+        error.message += ' (the server rejected the credential)';
+      } else if (response.status === 405 || response.status === 415) {
+        error.message += ' (this does not look like a Streamable HTTP MCP endpoint)';
+      }
       throw error;
     }
 
@@ -124,7 +202,11 @@ export class StreamableHttpTransport implements Transport {
 
     const text = await safeText(response);
     if (text.trim()) {
-      this.onError?.(new TransportError(`Unexpected content-type "${contentType}"`));
+      this.onError?.(
+        new TransportError(
+          `Unexpected content-type "${contentType}" - this does not look like a Streamable HTTP MCP endpoint`,
+        ),
+      );
     }
   }
 
@@ -140,15 +222,13 @@ export class StreamableHttpTransport implements Transport {
       const headers = await this.buildHeaders();
       headers.accept = 'text/event-stream';
       delete headers['content-type'];
-      const response = await this.fetchImpl(this.options.url, {
-        method: 'GET',
-        headers,
-        signal: this.abort.signal,
-      });
+      const response = await this.request({ method: 'GET' }, headers);
       if (response.status === 405 || response.status === 501) {
+        await response.body?.cancel().catch(() => undefined);
         return;
       }
       if (!response.ok || !response.body) {
+        await response.body?.cancel().catch(() => undefined);
         return;
       }
       void this.pumpEventStream(response.body, 'get');
@@ -223,9 +303,11 @@ export class StreamableHttpTransport implements Transport {
       try {
         const headers = await this.buildHeaders();
         delete headers['content-type'];
-        await this.fetchImpl(this.options.url, { method: 'DELETE', headers });
+        const response = await this.request({ method: 'DELETE' }, headers);
+        await response.body?.cancel().catch(() => undefined);
       } catch {
-        // Best effort: the session will time out server-side anyway.
+        // Best effort: the session will time out server-side anyway. A sign-out
+        // that already removed the token lands here too, and that is fine.
       }
     }
     this.abort.abort();
